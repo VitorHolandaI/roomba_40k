@@ -1,0 +1,2 @@
+pycreate2
+pyserial

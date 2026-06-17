@@ -52,9 +52,26 @@ def get_key():
 
 
 def seek_dock():
-    """Envia o Roomba para a base."""
+    """Envia o Roomba para a base.
+
+    Opcode 143 (Seek Dock) faz o robô voltar para o modo Passive da OI.
+    Em Passive os comandos de movimento são ignorados, então marcamos
+    `passivo = True` para re-entrar em Safe na próxima tecla manual.
+    """
+    global passivo
     bot.drive_stop()
-    bot.SCI.write(bytes([143]))
+    bot.start()          # Seek Dock atua a partir do modo Passive
+    time.sleep(0.2)
+    bot.SCI.write(143)   # 143 = Force Seeking Dock (opcode int, não bytes!)
+    passivo = True
+
+
+def garantir_safe():
+    """Reativa o modo Safe se o robô caiu em Passive (ex: após Dock)."""
+    global passivo
+    if passivo:
+        bot.safe()
+        passivo = False
 
 
 def atualizar_sensores():
@@ -149,6 +166,9 @@ movendo = False
 bateria_info = None
 ultima_leitura_bateria = 0
 
+# True quando o robô está em modo Passive (após Dock) e ignora movimento.
+passivo = False
+
 print(
     f"""{BOLD}
 Controles
@@ -186,21 +206,25 @@ try:
             ultima_acao = agora
 
             if tecla == "w":
+                garantir_safe()
                 bot.drive_direct(vel, vel)
                 movendo = True
                 mostrar_status("Frente")
 
             elif tecla == "s":
+                garantir_safe()
                 bot.drive_direct(-vel, -vel)
                 movendo = True
                 mostrar_status("Ré")
 
             elif tecla == "a":
+                garantir_safe()
                 bot.drive_direct(-vel, vel)
                 movendo = True
                 mostrar_status("Esquerda")
 
             elif tecla == "d":
+                garantir_safe()
                 bot.drive_direct(vel, -vel)
                 movendo = True
                 mostrar_status("Direita")
@@ -246,6 +270,11 @@ finally:
         bot.close()
     except Exception:
         pass
+
+    # pycreate2 chama drive_stop() no __del__ (GC), escrevendo numa porta
+    # já fechada -> PortNotOpenError. __del__ é resolvido na classe, então
+    # neutralizamos o destrutor depois de fechar manualmente.
+    Create2.__del__ = lambda self: None
 
     termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
