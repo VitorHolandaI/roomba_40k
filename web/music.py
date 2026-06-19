@@ -75,8 +75,7 @@ class MusicPlayer:
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
-                text=True,
-                bufsize=1,
+                bufsize=0,            # binário: nomes podem não ser UTF-8
             )
         except Exception as e:
             print(f"[music] falha ao iniciar mpg123: {e}")
@@ -100,26 +99,45 @@ class MusicPlayer:
                 pass
 
     def _send(self, cmd):
-        """Escreve um comando no stdin do mpg123 (thread-safe)."""
+        """Escreve um comando ASCII no stdin do mpg123 (thread-safe)."""
+        self._write(cmd.encode("ascii") + b"\n")
+
+    def _send_load(self, path):
+        """Envia LOAD com o caminho em bytes (nomes podem não ser UTF-8).
+
+        os.fsencode reverte o surrogateescape e recupera os bytes originais
+        do arquivo no disco — sem isso, um nome latin-1 quebraria o encode
+        UTF-8 e o comando nunca chegaria ao mpg123.
+        """
+        self._write(b"LOAD " + os.fsencode(path) + b"\n")
+        print(f"[music] LOAD {os.path.basename(path)!r}", flush=True)
+
+    def _write(self, raw):
         p = self.proc
         if p is None or p.stdin is None:
             return
         try:
-            p.stdin.write(cmd + "\n")
+            p.stdin.write(raw)
             p.stdin.flush()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[music] erro ao escrever no mpg123: {e}", flush=True)
 
     # ── thread leitora: detecta fim de faixa para avançar ─────────────────────
 
     def _reader(self):
         p = self.proc
-        for line in p.stdout:
-            line = line.strip()
+        for raw in p.stdout:
+            # Saída do mpg123 é ASCII (@... linhas de status); decodifica
+            # tolerante a qualquer byte estranho.
+            line = raw.decode("ascii", "replace").strip()
+            if line.startswith("@E"):
+                print(f"[music] mpg123 erro: {line}", flush=True)
+                continue
             if not line.startswith("@P"):
                 continue
             # @P 0 = parado/terminado, @P 1 = pausado, @P 2 = tocando.
             code = line[2:].strip()
+            print(f"[music] {line}", flush=True)
             advance = False
             with self.lock:
                 if code == "0":
@@ -159,7 +177,7 @@ class MusicPlayer:
             self.paused = False
             self._suppress_advance = True
             path = self.playlist[idx]
-        self._send("LOAD " + path)
+        self._send_load(path)
         self._notify()
 
     def play(self, idx=None):
@@ -215,10 +233,20 @@ class MusicPlayer:
 
     # ── estado p/ broadcast ────────────────────────────────────────────────────
 
+    @staticmethod
+    def _disp(path):
+        """Nome legível p/ a UI: os nomes em disco são latin-1, não UTF-8.
+
+        os.fsencode recupera os bytes originais; decodificamos como latin-1
+        para exibir acentos corretamente e evitar surrogates inválidos no JSON.
+        """
+        name = os.path.basename(path)
+        return os.fsencode(name).decode("latin-1", "replace")
+
     def state(self):
         with self.lock:
             track = (
-                os.path.basename(self.playlist[self.index])
+                self._disp(self.playlist[self.index])
                 if 0 <= self.index < len(self.playlist)
                 else None
             )
@@ -230,7 +258,7 @@ class MusicPlayer:
                 "index": self.index,
                 "total": len(self.playlist),
                 "track": track,
-                "files": [os.path.basename(p) for p in self.playlist],
+                "files": [self._disp(p) for p in self.playlist],
             }
 
     def _notify(self):
