@@ -163,8 +163,8 @@
     switch (dir) {
       case "fwd":   return [vel, vel];
       case "back":  return [-vel, -vel];
-      case "left":  return [-vel, vel];
-      case "right": return [vel, -vel];
+      case "left":  return [vel, -vel];
+      case "right": return [-vel, vel];
       default:      return [0, 0];
     }
   }
