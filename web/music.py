@@ -20,11 +20,14 @@ import subprocess
 class MusicPlayer:
     """Controla o mpg123 em modo remoto e a playlist sequencial."""
 
-    def __init__(self, music_dir, alsa_dev=None, on_change=None):
+    def __init__(self, music_dir, alsa_dev=None, on_change=None, volume=80):
         self.music_dir = os.path.expanduser(music_dir)
         self.alsa_dev = alsa_dev
         # Callback chamado (sem args) sempre que o estado muda, para broadcast.
         self.on_change = on_change
+
+        # Volume em % (0-100). mpg123 aplica via comando VOLUME.
+        self.volume = max(0, min(100, int(volume)))
 
         self.lock = threading.Lock()
         self.proc = None
@@ -83,6 +86,8 @@ class MusicPlayer:
             return
         # Silencia as linhas de frame (@F ...) para não inundar o pipe.
         self._send("SILENCE")
+        # Aplica o volume inicial.
+        self._send(f"VOLUME {self.volume}")
         t = threading.Thread(target=self._reader, daemon=True)
         t.start()
         print(
@@ -226,6 +231,15 @@ class MusicPlayer:
             prv = (self.index - 1) % len(self.playlist)
         self._load_index(prv)
 
+    def set_volume(self, pct):
+        if not self.available:
+            return
+        with self.lock:
+            self.volume = max(0, min(100, int(pct)))
+            v = self.volume
+        self._send(f"VOLUME {v}")
+        self._notify()
+
     def rescan(self):
         with self.lock:
             self._scan()
@@ -257,6 +271,7 @@ class MusicPlayer:
                 "paused": self.paused,
                 "index": self.index,
                 "total": len(self.playlist),
+                "volume": self.volume,
                 "track": track,
                 "files": [self._disp(p) for p in self.playlist],
             }

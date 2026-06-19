@@ -304,6 +304,9 @@
   var mPos = document.getElementById("music-pos");
   var mList = document.getElementById("music-list");
   var mPlay = document.getElementById("m-play");
+  var mVol = document.getElementById("m-vol");
+  var mVolVal = document.getElementById("m-vol-val");
+  var draggingVol = false;
   var lastTotal = -1;
 
   function music(action, index) {
@@ -326,6 +329,12 @@
     }
     mPlay.textContent = (m.playing && !m.paused) ? "⏸" : "▶";
 
+    // Reflete o volume vindo do servidor (mas não enquanto o usuário arrasta).
+    if (typeof m.volume === "number" && !draggingVol) {
+      mVol.value = m.volume;
+      mVolVal.textContent = m.volume + "%";
+    }
+
     // Reconstroi a lista só quando muda o conjunto de faixas.
     if (m.total !== lastTotal || mList.childElementCount !== m.total) {
       mList.innerHTML = "";
@@ -347,6 +356,14 @@
   document.getElementById("m-stop").addEventListener("click", function () { music("stop"); });
   document.getElementById("m-next").addEventListener("click", function () { music("next"); });
   document.getElementById("m-prev").addEventListener("click", function () { music("prev"); });
+
+  // Volume: envia ao arrastar; flag evita o estado de volta mexer no slider.
+  mVol.addEventListener("input", function () {
+    draggingVol = true;
+    mVolVal.textContent = mVol.value + "%";
+    send({ type: "music", action: "volume", value: parseInt(mVol.value, 10) });
+  });
+  mVol.addEventListener("change", function () { draggingVol = false; });
 
   // Para por segurança quando a aba perde foco / é escondida.
   window.addEventListener("blur", stopDrive);

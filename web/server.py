@@ -406,6 +406,8 @@ async def handle_ws(request):
                         player.next()
                     elif acao == "prev":
                         player.prev()
+                    elif acao == "volume":
+                        player.set_volume(data.get("value", 80))
                     elif acao == "rescan":
                         player.rescan()
                 continue
