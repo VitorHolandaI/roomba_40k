@@ -1,2 +1,3 @@
 pycreate2
 pyserial
+aiohttp

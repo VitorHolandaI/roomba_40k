@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Roomba RC</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>Roomba RC</h1>
+    <div id="conn" class="conn off">offline</div>
+  </header>
+
+  <!-- HUD da bateria -->
+  <section id="hud">
+    <div class="bat">
+      <span id="bat-pct" class="bat-pct">--%</span>
+      <div class="bat-meta">
+        <span id="bat-volt">-- V</span>
+        <span id="bat-curr">-- mA</span>
+        <span id="bat-state">--</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Banner de papel: motorista x espectador -->
+  <div id="role-banner" class="role hidden">
+    <span id="role-text">Espectador — outro cliente está no controle</span>
+    <button id="btn-claim">Assumir controle</button>
+  </div>
+
+  <!-- Seletor de modo -->
+  <nav id="modes">
+    <button class="mode-btn active" data-mode="dpad">D-Pad</button>
+    <button class="mode-btn" data-mode="joy">Joystick</button>
+  </nav>
+
+  <!-- Modo D-PAD -->
+  <section id="dpad-mode" class="control-mode">
+    <div class="dpad" style="touch-action:none">
+      <button class="dbtn up"    data-dir="fwd">▲</button>
+      <button class="dbtn left"  data-dir="left">◀</button>
+      <button class="dbtn stopc" data-dir="stop">■</button>
+      <button class="dbtn right" data-dir="right">▶</button>
+      <button class="dbtn down"  data-dir="back">▼</button>
+    </div>
+    <div class="speed">
+      <label>Velocidade: <span id="vel-val">150</span> mm/s</label>
+      <input id="vel-slider" type="range" min="50" max="500" step="10" value="150">
+    </div>
+  </section>
+
+  <!-- Modo JOYSTICK -->
+  <section id="joy-mode" class="control-mode hidden">
+    <div id="joy-base" style="touch-action:none">
+      <div id="joy-stick"></div>
+    </div>
+    <p class="hint">Arraste para dirigir</p>
+  </section>
+
+  <!-- Botões globais -->
+  <footer>
+    <button id="btn-dock" class="big dock">Dock</button>
+    <button id="btn-stop" class="big stop">STOP</button>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

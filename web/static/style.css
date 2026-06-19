@@ -1,0 +1,153 @@
+/* Roomba RC — estilo minimalista, offline (sem CDN/fontes externas) */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #15171c;
+  --panel: #1f232b;
+  --panel-hi: #2a2f3a;
+  --accent: #3b82f6;
+  --green: #22c55e;
+  --yellow: #eab308;
+  --red: #ef4444;
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 12px;
+  gap: 12px;
+  height: 100dvh;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+h1 { font-size: 1.2rem; letter-spacing: 0.5px; }
+
+.conn {
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.conn.on  { background: rgba(34,197,94,0.2);  color: var(--green); }
+.conn.off { background: rgba(239,68,68,0.2);  color: var(--red); }
+
+/* HUD bateria */
+#hud { background: var(--panel); border-radius: 12px; padding: 12px 16px; }
+.bat { display: flex; align-items: center; gap: 16px; }
+.bat-pct { font-size: 1.8rem; font-weight: 700; }
+.bat-pct.green  { color: var(--green); }
+.bat-pct.yellow { color: var(--yellow); }
+.bat-pct.red    { color: var(--red); }
+.bat-meta {
+  display: flex; flex-direction: column; gap: 2px;
+  font-size: 0.8rem; color: var(--muted);
+}
+
+/* Seletor de modo */
+#modes { display: flex; gap: 8px; }
+.mode-btn {
+  flex: 1; padding: 10px; border: none; border-radius: 10px;
+  background: var(--panel); color: var(--muted);
+  font-size: 0.95rem; font-weight: 600; cursor: pointer;
+}
+.mode-btn.active { background: var(--accent); color: #fff; }
+
+/* Área de controle ocupa o espaço restante */
+.control-mode {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 18px;
+}
+.hidden { display: none !important; }
+
+/* D-Pad */
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 84px);
+  grid-template-rows: repeat(3, 84px);
+  gap: 8px;
+}
+.dbtn {
+  border: none; border-radius: 14px;
+  background: var(--panel-hi); color: var(--text);
+  font-size: 1.6rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  touch-action: none;
+}
+.dbtn:active { background: var(--accent); }
+.dbtn.up    { grid-area: 1 / 2; }
+.dbtn.left  { grid-area: 2 / 1; }
+.dbtn.stopc { grid-area: 2 / 2; background: var(--red); }
+.dbtn.right { grid-area: 2 / 3; }
+.dbtn.down  { grid-area: 3 / 2; }
+
+.speed { width: 100%; max-width: 320px; text-align: center; }
+.speed label { font-size: 0.85rem; color: var(--muted); }
+#vel-slider { width: 100%; margin-top: 8px; }
+
+/* Joystick */
+#joy-base {
+  width: 240px; height: 240px;
+  border-radius: 50%;
+  background: var(--panel);
+  position: relative;
+  touch-action: none;
+  box-shadow: inset 0 0 0 2px var(--panel-hi);
+}
+#joy-stick {
+  width: 90px; height: 90px;
+  border-radius: 50%;
+  background: var(--accent);
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+}
+.hint { color: var(--muted); font-size: 0.85rem; }
+
+/* Botões globais */
+footer { display: flex; gap: 10px; }
+.big {
+  flex: 1; padding: 16px; border: none; border-radius: 12px;
+  font-size: 1.05rem; font-weight: 700; cursor: pointer; color: #fff;
+}
+.big.dock { background: var(--accent); }
+.big.stop { background: var(--red); }
+.big:active { filter: brightness(1.2); }
+
+/* Banner de papel (single-driver lock) */
+.role {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .75rem; margin: .5rem .75rem; padding: .6rem .8rem;
+  background: var(--panel-hi); border: 1px solid var(--yellow);
+  border-radius: 10px; font-size: .9rem; color: var(--muted);
+}
+.role.hidden { display: none; }
+#btn-claim {
+  flex: none; padding: .5rem .9rem; border: 0; border-radius: 8px;
+  background: var(--accent); color: #fff; font-weight: 700; cursor: pointer;
+}
+/* Espectador: controles esmaecidos e inertes */
+body.spectator .control-mode,
+body.spectator footer { opacity: .35; pointer-events: none; }
