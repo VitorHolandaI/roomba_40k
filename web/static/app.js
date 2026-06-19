@@ -12,6 +12,8 @@
 
   var MAX_VEL = 500;
   var MIN_VEL = 50;
+  // Velocidade máxima do joystick — menor que MAX_VEL para suavizar a resposta.
+  var JOY_MAX = 250;
   var SEND_HZ = 10;
   var SEND_INTERVAL = 1000 / SEND_HZ;
 
@@ -236,13 +238,13 @@
     var ny = dy / radius;       // baixo = +
 
     var forward = -ny;          // frente = -y
-    var turn = nx;              // virar = x
+    var turn = -nx;             // virar = -x (esquerda/direita estavam invertidos)
 
-    var left = (forward + turn) * MAX_VEL;
-    var right = (forward - turn) * MAX_VEL;
+    var left = (forward + turn) * JOY_MAX;
+    var right = (forward - turn) * JOY_MAX;
 
-    left = Math.max(-MAX_VEL, Math.min(MAX_VEL, left));
-    right = Math.max(-MAX_VEL, Math.min(MAX_VEL, right));
+    left = Math.max(-JOY_MAX, Math.min(JOY_MAX, left));
+    right = Math.max(-JOY_MAX, Math.min(JOY_MAX, right));
 
     setDrive(left, right);
   }
