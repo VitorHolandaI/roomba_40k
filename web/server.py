@@ -22,6 +22,8 @@ from aiohttp import web, WSMsgType
 
 from pycreate2 import Create2
 
+from music import MusicPlayer
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Configuração
@@ -29,6 +31,11 @@ from pycreate2 import Create2
 
 PORT = os.environ.get("ROOMBA_PORT", "/dev/ttyUSB0")
 HTTP_PORT = int(os.environ.get("ROOMBA_HTTP_PORT", "8080"))
+
+# Música: pasta de MP3s e saída ALSA. No RPi o alto-falante no jack 3.5mm
+# costuma ser card 1 (bcm2835 Headphones) -> hw:1,0.
+MUSIC_DIR = os.environ.get("MUSIC_DIR", "~/Music")
+MUSIC_ALSA_DEV = os.environ.get("MUSIC_ALSA_DEV", "hw:1,0")
 
 MIN_VEL = 50
 MAX_VEL = 500
@@ -293,6 +300,28 @@ clients = set()
 # motorista; outro pode assumir enviando {"type":"claim"}.
 driver = None
 
+# Player de música (boombox-roomba) e o event loop asyncio para agendar
+# broadcasts a partir da thread do player.
+player = None
+app_loop = None
+
+
+def _on_music_change():
+    """Callback (thread do player) -> agenda broadcast no loop asyncio."""
+    if app_loop is not None:
+        app_loop.call_soon_threadsafe(lambda: asyncio.ensure_future(broadcast_music()))
+
+
+async def broadcast_music():
+    if player is None:
+        return
+    info = player.state()
+    for ws in list(clients):
+        try:
+            await ws.send_json(info)
+        except Exception:
+            clients.discard(ws)
+
 
 async def notify_roles():
     """Informa a cada cliente se ele é o motorista atual."""
@@ -335,6 +364,8 @@ async def handle_ws(request):
     # Envia a última bateria conhecida e o papel (motorista/espectador).
     try:
         await ws.send_json(shared.get_battery())
+        if player is not None:
+            await ws.send_json(player.state())
     except Exception:
         pass
     await notify_roles()
@@ -359,6 +390,24 @@ async def handle_ws(request):
                     driver = ws
                     shared.request_stop()  # estado limpo ao trocar de dono
                     await notify_roles()
+                continue
+
+            # Música: qualquer cliente pode controlar (não é crítico/seguro).
+            if tipo == "music":
+                if player is not None:
+                    acao = data.get("action")
+                    if acao == "play":
+                        player.play(data.get("index"))
+                    elif acao == "pause":
+                        player.pause()
+                    elif acao == "stop":
+                        player.stop()
+                    elif acao == "next":
+                        player.next()
+                    elif acao == "prev":
+                        player.prev()
+                    elif acao == "rescan":
+                        player.rescan()
                 continue
 
             # Comandos de movimento só valem para o motorista atual.
@@ -416,9 +465,15 @@ async def battery_broadcaster(app):
 # ─────────────────────────────────────────────────────────────────────────────
 
 async def on_startup(app):
+    global player, app_loop
+    app_loop = asyncio.get_running_loop()
+
     app["control"] = ControlThread(shared)
     app["control"].start()
     app["broadcaster"] = asyncio.create_task(battery_broadcaster(app))
+
+    player = MusicPlayer(MUSIC_DIR, alsa_dev=MUSIC_ALSA_DEV, on_change=_on_music_change)
+    player.start()
 
 
 async def on_cleanup(app):
@@ -441,6 +496,9 @@ async def on_cleanup(app):
     if ctrl:
         ctrl.stop()
         ctrl.join(timeout=2.0)
+
+    if player is not None:
+        player.stop_proc()
 
 
 def build_app():

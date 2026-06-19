@@ -32,5 +32,11 @@ if ! id -nG "$USER" | tr ' ' '\n' | grep -qx dialout; then
   echo "       Corrija com: sudo usermod -aG dialout $USER  (relogar depois)"
 fi
 
+# Aviso se o mpg123 (player de música) não estiver instalado.
+if ! command -v mpg123 >/dev/null; then
+  echo "[run] AVISO: 'mpg123' ausente. Música desabilitada."
+  echo "       Instale com: sudo apt install mpg123   (Debian/Raspberry Pi OS)"
+fi
+
 echo "[run] iniciando servidor..."
 exec python web/server.py

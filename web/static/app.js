@@ -52,6 +52,7 @@
       try { data = JSON.parse(ev.data); } catch (e) { return; }
       if (data.type === "battery") updateBattery(data);
       else if (data.type === "role") updateRole(data.driver);
+      else if (data.type === "music") updateMusic(data);
     };
   }
 
@@ -297,6 +298,55 @@
     curRight = 0;
     send({ type: "dock" });
   });
+
+  // ── Player de música ──────────────────────────────────────────────────────
+  var mTrack = document.getElementById("music-track");
+  var mPos = document.getElementById("music-pos");
+  var mList = document.getElementById("music-list");
+  var mPlay = document.getElementById("m-play");
+  var lastTotal = -1;
+
+  function music(action, index) {
+    var msg = { type: "music", action: action };
+    if (index !== undefined) msg.index = index;
+    send(msg);
+  }
+
+  function updateMusic(m) {
+    if (!m.available) {
+      mTrack.textContent = "mpg123 ausente no servidor";
+      return;
+    }
+    if (m.total === 0) {
+      mTrack.textContent = "pasta de música vazia";
+      mPos.textContent = "";
+    } else {
+      mTrack.textContent = m.track || "— parado —";
+      mPos.textContent = m.index >= 0 ? (m.index + 1) + "/" + m.total : "";
+    }
+    mPlay.textContent = (m.playing && !m.paused) ? "⏸" : "▶";
+
+    // Reconstroi a lista só quando muda o conjunto de faixas.
+    if (m.total !== lastTotal || mList.childElementCount !== m.total) {
+      mList.innerHTML = "";
+      m.files.forEach(function (name, i) {
+        var li = document.createElement("li");
+        li.textContent = name;
+        li.addEventListener("click", function () { music("play", i); });
+        mList.appendChild(li);
+      });
+      lastTotal = m.total;
+    }
+    // Destaca a faixa atual.
+    Array.prototype.forEach.call(mList.children, function (li, i) {
+      li.classList.toggle("cur", i === m.index);
+    });
+  }
+
+  mPlay.addEventListener("click", function () { music("play"); });
+  document.getElementById("m-stop").addEventListener("click", function () { music("stop"); });
+  document.getElementById("m-next").addEventListener("click", function () { music("next"); });
+  document.getElementById("m-prev").addEventListener("click", function () { music("prev"); });
 
   // Para por segurança quando a aba perde foco / é escondida.
   window.addEventListener("blur", stopDrive);
