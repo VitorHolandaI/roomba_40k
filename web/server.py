@@ -24,6 +24,7 @@ from aiohttp import web, WSMsgType
 from pycreate2 import Create2
 
 from music import MusicPlayer
+from caveira_sensor import CaveiraSensor
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -40,6 +41,14 @@ MUSIC_ALSA_DEV = os.environ.get("MUSIC_ALSA_DEV", "hw:1,0")
 # Autoplay: toca sozinho ao subir (1 = sim, default). 0 desliga.
 MUSIC_AUTOPLAY = os.environ.get("MUSIC_AUTOPLAY", "1") != "0"
 
+# Sensor da caveira (clearance frontal). Backend: none|vl53l0x|hcsr04.
+# Default "none" = desabilitado (degrada sem hardware).
+CAVEIRA_SENSOR = os.environ.get("CAVEIRA_SENSOR", "none")
+CAVEIRA_MIN_CM = float(os.environ.get("CAVEIRA_MIN_CM", "20"))
+# Pinos BCM do HC-SR04 (echo precisa divisor de tensão -> 3.3V).
+CAVEIRA_TRIG = int(os.environ.get("CAVEIRA_TRIG", "23"))
+CAVEIRA_ECHO = int(os.environ.get("CAVEIRA_ECHO", "24"))
+
 MIN_VEL = 50
 MAX_VEL = 500
 
@@ -53,10 +62,8 @@ BATTERY_UPDATE = 2.0
 # Período do loop de controle (~50 Hz).
 LOOP_PERIOD = 0.02
 
-# Modo autônomo: velocidades (mm/s) e cadência de decisão.
-AUTO_FWD = 200       # frente em linha reta
-AUTO_TURN = 150      # girar no próprio eixo
-AUTO_BACK = -160     # recuar ao detectar obstáculo/queda
+# Modo autônomo: a velocidade base vem do slider do front (SharedState.speed);
+# giro/ré escalam a partir dela. Aqui só a cadência de decisão.
 AUTO_DECISION = 0.1  # intervalo entre leituras de sensor (~10 Hz)
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -86,6 +93,9 @@ class SharedState:
 
         # Modo autônomo (vagar evitando quedas). Comando manual desliga.
         self.auto_mode = False
+
+        # Velocidade (mm/s) do slider do front; usada como base no auto.
+        self.speed = 150
 
         # Última leitura de bateria (dict) para broadcast.
         self.battery = {"type": "battery", "ok": False}
@@ -127,6 +137,14 @@ class SharedState:
     def get_auto(self):
         with self.lock:
             return self.auto_mode
+
+    def set_speed(self, v):
+        with self.lock:
+            self.speed = max(MIN_VEL, min(MAX_VEL, int(v)))
+
+    def get_speed(self):
+        with self.lock:
+            return self.speed
 
     # -- lido/escrito pela thread de controle --------------------------------
 
@@ -188,9 +206,10 @@ def ler_bateria(bot):
 class ControlThread(threading.Thread):
     """Loop de controle bloqueante rodando em thread dedicada."""
 
-    def __init__(self, state):
+    def __init__(self, state, caveira=None):
         super().__init__(daemon=True)
         self.state = state
+        self.caveira = caveira     # sensor da caveira (clearance frontal)
         self.bot = None
         self._running = threading.Event()
         self._running.set()
@@ -284,17 +303,29 @@ class ControlThread(threading.Thread):
         except Exception:
             return None
 
+    def _vel_auto(self):
+        """Velocidades do modo autônomo derivadas do slider do front.
+
+        frente = valor do slider; giro/ré escalam proporcionalmente para o
+        comportamento ficar coerente em qualquer velocidade.
+        """
+        fwd = self.state.get_speed()
+        turn = max(MIN_VEL, int(fwd * 0.8))
+        back = -max(MIN_VEL, int(fwd * 0.8))
+        return fwd, turn, back
+
     def _enfileirar_recuo(self, back_dur, turn_dur, vira_direita):
         """Manobra de fuga: recua e depois gira para longe do obstáculo."""
         # Cliff/wheeldrop em Safe faz o firmware cair em Passive; marca para
         # re-entrar em Safe no próximo drive (vide _garantir_safe).
         self.passivo = True
+        _, turn, back = self._vel_auto()
         if vira_direita:
-            giro = (AUTO_TURN, -AUTO_TURN)
+            giro = (turn, -turn)
         else:
-            giro = (-AUTO_TURN, AUTO_TURN)
+            giro = (-turn, turn)
         self._auto_q = [
-            (AUTO_BACK, AUTO_BACK, back_dur),
+            (back, back, back_dur),
             (giro[0], giro[1], turn_dur),
         ]
         self._auto_until = 0.0  # encerra manobra atual -> fila assume já
@@ -337,6 +368,11 @@ class ControlThread(threading.Thread):
             self._enfileirar_recuo(0.6, 0.7, vira_direita=esq)
             return
 
+        # Caveira: obstáculo alto à frente (móvel baixo) que bump/cliff não veem.
+        if self.caveira is not None and self.caveira.blocked():
+            self._enfileirar_recuo(0.4, 0.6, vira_direita=random.random() < 0.5)
+            return
+
         # Esbarrou: recua pouco e desvia para o lado oposto.
         if bw.bump_left and bw.bump_right:
             self._enfileirar_recuo(0.4, 0.8, vira_direita=True)
@@ -348,16 +384,18 @@ class ControlThread(threading.Thread):
             self._enfileirar_recuo(0.3, 0.5, vira_direita=False)
             return
 
+        fwd, turn, _ = self._vel_auto()
+
         # Caminho livre: frente. De vez em quando, leve desvio aleatório
         # para vaguear (simula o padrão de limpeza por random-walk).
         if random.random() < 0.04:
-            d = AUTO_TURN if random.random() < 0.5 else -AUTO_TURN
+            d = turn if random.random() < 0.5 else -turn
             self._auto_q = [(d, -d, random.uniform(0.2, 0.5))]
             self._auto_until = 0.0
             return
 
-        self._auto_l = self._auto_r = AUTO_FWD
-        self._drive(AUTO_FWD, AUTO_FWD)
+        self._auto_l = self._auto_r = fwd
+        self._drive(fwd, fwd)
 
     # -- loop principal -------------------------------------------------------
 
@@ -381,6 +419,13 @@ class ControlThread(threading.Thread):
 
                 # Heartbeat do carrinho RC: comando velho -> para.
                 if agora - last_update > TIMEOUT:
+                    target_left = 0
+                    target_right = 0
+
+                # Safety da caveira: obstáculo alto à frente bloqueia avanço
+                # (mas permite ré e giro no lugar).
+                if (self.caveira is not None and self.caveira.blocked()
+                        and target_left > 0 and target_right > 0):
                     target_left = 0
                     target_right = 0
 
@@ -430,6 +475,9 @@ driver = None
 # broadcasts a partir da thread do player.
 player = None
 app_loop = None
+
+# Sensor da caveira (clearance frontal); None até o startup.
+caveira = None
 
 
 _music_bcast_pending = False
@@ -584,9 +632,9 @@ async def handle_ws(request):
                 await broadcast_auto()
 
             elif tipo == "vel":
-                # Ajuste de velocidade do d-pad é tratado no cliente; aqui
-                # apenas ignoramos (o cliente envia drive já escalado).
-                pass
+                # Slider de velocidade: o d-pad já envia drive escalado, mas
+                # guardamos o valor para o modo autônomo usar a mesma base.
+                shared.set_speed(data.get("value", 150))
 
     finally:
         clients.discard(ws)
@@ -609,9 +657,20 @@ async def battery_broadcaster(app):
             if not clients:
                 continue
             info = shared.get_battery()
+            # Anexa a leitura da caveira quando o sensor está ativo.
+            cav = None
+            if caveira is not None and caveira.available:
+                cav = {
+                    "type": "caveira",
+                    "available": True,
+                    "cm": caveira.distance_cm(),
+                    "blocked": caveira.blocked(),
+                }
             for ws in list(clients):
                 try:
                     await ws.send_json(info)
+                    if cav is not None:
+                        await ws.send_json(cav)
                 except Exception:
                     clients.discard(ws)
     except asyncio.CancelledError:
@@ -623,10 +682,17 @@ async def battery_broadcaster(app):
 # ─────────────────────────────────────────────────────────────────────────────
 
 async def on_startup(app):
-    global player, app_loop
+    global player, app_loop, caveira
     app_loop = asyncio.get_running_loop()
 
-    app["control"] = ControlThread(shared)
+    caveira = CaveiraSensor(
+        backend=CAVEIRA_SENSOR, min_cm=CAVEIRA_MIN_CM,
+        trig_pin=CAVEIRA_TRIG, echo_pin=CAVEIRA_ECHO,
+    )
+    if caveira.available:
+        caveira.start()
+
+    app["control"] = ControlThread(shared, caveira=caveira)
     app["control"].start()
     app["broadcaster"] = asyncio.create_task(battery_broadcaster(app))
 
@@ -660,6 +726,9 @@ async def on_cleanup(app):
 
     if player is not None:
         player.stop_proc()
+
+    if caveira is not None:
+        caveira.stop()
 
 
 def build_app():

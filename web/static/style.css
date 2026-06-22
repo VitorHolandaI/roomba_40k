@@ -179,7 +179,6 @@ body.spectator footer { opacity: .35; pointer-events: none; }
 .mbtn:active { filter: brightness(1.2); }
 #music-list {
   list-style: none; margin: .5rem 0 0; padding: 0;
-  max-height: 30vh; overflow-y: auto;
 }
 #music-list li {
   padding: .4rem .5rem; border-radius: 6px; font-size: .85rem;
@@ -193,3 +192,7 @@ body.spectator footer { opacity: .35; pointer-events: none; }
 }
 .music-vol input[type=range] { flex: 1; }
 #m-vol-val { min-width: 3ch; text-align: right; font-size: .8rem; }
+
+/* Sensor da caveira */
+.caveira { margin-left: auto; font-size: .9rem; color: var(--muted); font-weight: 600; }
+.caveira.blocked { color: var(--red); }

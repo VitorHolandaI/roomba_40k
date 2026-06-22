@@ -54,6 +54,7 @@
       else if (data.type === "role") updateRole(data.driver);
       else if (data.type === "music") updateMusic(data);
       else if (data.type === "auto") updateAuto(data.on);
+      else if (data.type === "caveira") updateCaveira(data);
     };
   }
 
@@ -316,6 +317,16 @@
     if (!isDriver) return;
     send({ type: "auto", on: !autoOn });
   });
+
+  // ── Sensor da caveira (clearance frontal) ─────────────────────────────────
+  var caveiraEl = document.getElementById("caveira");
+  function updateCaveira(c) {
+    if (!c.available) { caveiraEl.classList.add("hidden"); return; }
+    caveiraEl.classList.remove("hidden");
+    var cm = (typeof c.cm === "number") ? Math.round(c.cm) + " cm" : "-- cm";
+    caveiraEl.textContent = "💀 " + cm;
+    caveiraEl.classList.toggle("blocked", !!c.blocked);
+  }
 
   // ── Player de música ──────────────────────────────────────────────────────
   var mTrack = document.getElementById("music-track");
