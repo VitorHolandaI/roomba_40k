@@ -14,24 +14,34 @@
   --muted: #9ca3af;
 }
 
-html, body {
+html {
+  background: var(--bg);
+  /* Rolagem nativa garantida no mobile. */
+  height: auto;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-user-select: none;
   user-select: none;
-  overscroll-behavior-y: contain;   /* sem bounce, mas permite rolar */
-}
 
-body {
-  display: flex;
-  flex-direction: column;
+  /* Fluxo de bloco simples: a página inteira rola. Nada de flex/100dvh
+     que travava o scroll no celular. */
   max-width: 520px;
   margin: 0 auto;
   padding: 12px;
-  gap: 12px;
-  min-height: 100dvh;               /* cresce e rola se não couber */
+  /* Espaço extra no fim para o conteúdo não ficar atrás da barra fixa. */
+  padding-bottom: 96px;
 }
+
+/* Espaçamento vertical entre as seções (substitui o gap do flex). */
+body > header,
+body > section,
+body > nav,
+body > #role-banner { margin-bottom: 12px; }
 
 header {
   display: flex;
@@ -125,13 +135,17 @@ h1 { font-size: 1.2rem; letter-spacing: 0.5px; }
 }
 .hint { color: var(--muted); font-size: 0.85rem; }
 
-/* Botões globais — rodapé fixo: Dock/STOP/Auto sempre alcançáveis */
+/* Botões globais — barra inferior FIXA: Dock/STOP/Auto sempre visíveis,
+   sem interferir na rolagem da página (que rola atrás dela). */
 footer {
   display: flex; gap: 10px;
-  position: sticky; bottom: 0;
-  padding: 8px 0;
-  margin-top: auto;
+  position: fixed;
+  left: 50%; transform: translateX(-50%);
+  bottom: 0;
+  width: 100%; max-width: 520px;
+  padding: 10px 12px;
   background: var(--bg);
+  box-shadow: 0 -8px 16px rgba(0,0,0,0.35);
 }
 .big {
   flex: 1; padding: 16px; border: none; border-radius: 12px;
