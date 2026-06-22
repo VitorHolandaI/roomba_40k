@@ -15,13 +15,12 @@
 }
 
 html, body {
-  height: 100%;
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-user-select: none;
   user-select: none;
-  overflow: hidden;
+  overscroll-behavior-y: contain;   /* sem bounce, mas permite rolar */
 }
 
 body {
@@ -31,7 +30,7 @@ body {
   margin: 0 auto;
   padding: 12px;
   gap: 12px;
-  height: 100dvh;
+  min-height: 100dvh;               /* cresce e rola se não couber */
 }
 
 header {
@@ -72,20 +71,20 @@ h1 { font-size: 1.2rem; letter-spacing: 0.5px; }
 }
 .mode-btn.active { background: var(--accent); color: #fff; }
 
-/* Área de controle ocupa o espaço restante */
+/* Área de controle: tamanho natural; a página rola se precisar */
 .control-mode {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   gap: 18px;
 }
 .hidden { display: none !important; }
 
-/* D-Pad */
+/* D-Pad (responsivo: encolhe em telas estreitas) */
 .dpad {
   display: grid;
-  grid-template-columns: repeat(3, 84px);
-  grid-template-rows: repeat(3, 84px);
+  grid-template-columns: repeat(3, min(84px, 22vw));
+  grid-template-rows: repeat(3, min(84px, 22vw));
   gap: 8px;
 }
 .dbtn {
@@ -108,7 +107,7 @@ h1 { font-size: 1.2rem; letter-spacing: 0.5px; }
 
 /* Joystick */
 #joy-base {
-  width: 240px; height: 240px;
+  width: min(240px, 64vw); height: min(240px, 64vw);
   border-radius: 50%;
   background: var(--panel);
   position: relative;
@@ -126,14 +125,22 @@ h1 { font-size: 1.2rem; letter-spacing: 0.5px; }
 }
 .hint { color: var(--muted); font-size: 0.85rem; }
 
-/* Botões globais */
-footer { display: flex; gap: 10px; }
+/* Botões globais — rodapé fixo: Dock/STOP/Auto sempre alcançáveis */
+footer {
+  display: flex; gap: 10px;
+  position: sticky; bottom: 0;
+  padding: 8px 0;
+  margin-top: auto;
+  background: var(--bg);
+}
 .big {
   flex: 1; padding: 16px; border: none; border-radius: 12px;
   font-size: 1.05rem; font-weight: 700; cursor: pointer; color: #fff;
 }
 .big.dock { background: var(--accent); }
 .big.stop { background: var(--red); }
+.big.auto { background: var(--panel-hi); }
+.big.auto.on { background: var(--green); }   /* modo autônomo ligado */
 .big:active { filter: brightness(1.2); }
 
 /* Banner de papel (single-driver lock) */

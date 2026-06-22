@@ -53,6 +53,7 @@
       if (data.type === "battery") updateBattery(data);
       else if (data.type === "role") updateRole(data.driver);
       else if (data.type === "music") updateMusic(data);
+      else if (data.type === "auto") updateAuto(data.on);
     };
   }
 
@@ -116,6 +117,8 @@
 
   function setDrive(left, right) {
     if (!isDriver) return;            // espectador não comanda
+    // Comando manual desliga o autônomo (servidor faz o mesmo); reflete já.
+    if (autoOn) updateAuto(false);
     curLeft = Math.round(left);
     curRight = Math.round(right);
     active = true;
@@ -297,6 +300,21 @@
     curLeft = 0;
     curRight = 0;
     send({ type: "dock" });
+  });
+
+  // ── Modo autônomo (vagar evitando quedas) ─────────────────────────────────
+  var autoOn = false;
+  var btnAuto = document.getElementById("btn-auto");
+
+  function updateAuto(on) {
+    autoOn = !!on;
+    btnAuto.classList.toggle("on", autoOn);
+    btnAuto.textContent = autoOn ? "🧹 Auto ON" : "🧹 Auto";
+  }
+
+  btnAuto.addEventListener("click", function () {
+    if (!isDriver) return;
+    send({ type: "auto", on: !autoOn });
   });
 
   // ── Player de música ──────────────────────────────────────────────────────

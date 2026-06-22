@@ -20,11 +20,14 @@ import subprocess
 class MusicPlayer:
     """Controla o mpg123 em modo remoto e a playlist sequencial."""
 
-    def __init__(self, music_dir, alsa_dev=None, on_change=None, volume=80):
+    def __init__(self, music_dir, alsa_dev=None, on_change=None, volume=80,
+                 autoplay=False):
         self.music_dir = os.path.expanduser(music_dir)
         self.alsa_dev = alsa_dev
         # Callback chamado (sem args) sempre que o estado muda, para broadcast.
         self.on_change = on_change
+        # Toca a primeira faixa automaticamente ao subir.
+        self.autoplay = autoplay
 
         # Volume em % (0-100). mpg123 aplica via comando VOLUME.
         self.volume = max(0, min(100, int(volume)))
@@ -94,6 +97,9 @@ class MusicPlayer:
             f"[music] mpg123 pronto | {len(self.playlist)} faixa(s) em "
             f"{self.music_dir} | saída: {self.alsa_dev or 'padrão'}"
         )
+        # Toca a primeira faixa automaticamente, se pedido e houver playlist.
+        if self.autoplay and self.playlist:
+            self.play(0)
 
     def stop_proc(self):
         if self.proc is not None:

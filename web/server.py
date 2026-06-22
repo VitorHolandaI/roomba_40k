@@ -15,6 +15,7 @@ Arquitetura (não negociável):
 import os
 import json
 import time
+import random
 import asyncio
 import threading
 
@@ -36,6 +37,8 @@ HTTP_PORT = int(os.environ.get("ROOMBA_HTTP_PORT", "8080"))
 # costuma ser card 1 (bcm2835 Headphones) -> hw:1,0.
 MUSIC_DIR = os.environ.get("MUSIC_DIR", "~/Music")
 MUSIC_ALSA_DEV = os.environ.get("MUSIC_ALSA_DEV", "hw:1,0")
+# Autoplay: toca sozinho ao subir (1 = sim, default). 0 desliga.
+MUSIC_AUTOPLAY = os.environ.get("MUSIC_AUTOPLAY", "1") != "0"
 
 MIN_VEL = 50
 MAX_VEL = 500
@@ -49,6 +52,12 @@ BATTERY_UPDATE = 2.0
 
 # Período do loop de controle (~50 Hz).
 LOOP_PERIOD = 0.02
+
+# Modo autônomo: velocidades (mm/s) e cadência de decisão.
+AUTO_FWD = 200       # frente em linha reta
+AUTO_TURN = 150      # girar no próprio eixo
+AUTO_BACK = -160     # recuar ao detectar obstáculo/queda
+AUTO_DECISION = 0.1  # intervalo entre leituras de sensor (~10 Hz)
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
@@ -75,29 +84,49 @@ class SharedState:
         # Pedido pontual de dock (consumido pela thread de controle).
         self.dock_requested = False
 
+        # Modo autônomo (vagar evitando quedas). Comando manual desliga.
+        self.auto_mode = False
+
         # Última leitura de bateria (dict) para broadcast.
         self.battery = {"type": "battery", "ok": False}
 
     # -- escrito pela camada web ---------------------------------------------
 
     def set_drive(self, left, right):
-        """Define o alvo das rodas. Último comando vence; reseta heartbeat."""
+        """Define o alvo das rodas. Último comando vence; reseta heartbeat.
+
+        Comando manual sempre DESLIGA o modo autônomo (override de segurança).
+        """
         with self.lock:
             self.target_left = int(left)
             self.target_right = int(right)
             self.last_update = time.time()
+            self.auto_mode = False
 
     def request_stop(self):
         with self.lock:
             self.target_left = 0
             self.target_right = 0
             self.last_update = time.time()
+            self.auto_mode = False
 
     def request_dock(self):
         with self.lock:
             self.target_left = 0
             self.target_right = 0
             self.dock_requested = True
+            self.auto_mode = False
+
+    def set_auto(self, on):
+        with self.lock:
+            self.auto_mode = bool(on)
+            if not on:
+                self.target_left = 0
+                self.target_right = 0
+
+    def get_auto(self):
+        with self.lock:
+            return self.auto_mode
 
     # -- lido/escrito pela thread de controle --------------------------------
 
@@ -173,6 +202,13 @@ class ControlThread(threading.Thread):
         self.sent_left = None
         self.sent_right = None
 
+        # Estado do modo autônomo.
+        self._auto_l = 0
+        self._auto_r = 0
+        self._auto_until = 0.0          # fim da manobra atual
+        self._auto_next_decision = 0.0  # próxima leitura de sensor
+        self._auto_q = []               # fila de manobras (l, r, duração)
+
     # -- ciclo de vida do robô (reutiliza lógica do main.py) -----------------
 
     def _conectar(self):
@@ -237,6 +273,92 @@ class ControlThread(threading.Thread):
         self.sent_left = left
         self.sent_right = right
 
+    # -- modo autônomo: vagar evitando quedas (escada) e obstáculos ----------
+
+    def _ler_sensores(self):
+        """Lê o pacote de sensores; None se falhar / sem robô."""
+        if self.bot is None:
+            return None
+        try:
+            return self.bot.get_sensors()
+        except Exception:
+            return None
+
+    def _enfileirar_recuo(self, back_dur, turn_dur, vira_direita):
+        """Manobra de fuga: recua e depois gira para longe do obstáculo."""
+        # Cliff/wheeldrop em Safe faz o firmware cair em Passive; marca para
+        # re-entrar em Safe no próximo drive (vide _garantir_safe).
+        self.passivo = True
+        if vira_direita:
+            giro = (AUTO_TURN, -AUTO_TURN)
+        else:
+            giro = (-AUTO_TURN, AUTO_TURN)
+        self._auto_q = [
+            (AUTO_BACK, AUTO_BACK, back_dur),
+            (giro[0], giro[1], turn_dur),
+        ]
+        self._auto_until = 0.0  # encerra manobra atual -> fila assume já
+
+    def _auto_step(self, now):
+        # Manobra em andamento: mantém até o tempo acabar.
+        if now < self._auto_until:
+            self._drive(self._auto_l, self._auto_r)
+            return
+
+        # Próxima manobra enfileirada (recuo/giro).
+        if self._auto_q:
+            l, r, dur = self._auto_q.pop(0)
+            self._auto_l, self._auto_r = l, r
+            self._auto_until = now + dur
+            self._drive(l, r)
+            return
+
+        # Hora de decidir? (~10 Hz, leitura de sensor é bloqueante)
+        if now < self._auto_next_decision:
+            self._drive(self._auto_l, self._auto_r)
+            return
+        self._auto_next_decision = now + AUTO_DECISION
+
+        s = self._ler_sensores()
+        if s is None:
+            # Sem sensores (sem robô) -> não anda, por segurança.
+            self._auto_l = self._auto_r = 0
+            self._drive(0, 0)
+            return
+
+        bw = s.bumps_wheeldrops
+        cliff = (s.cliff_left or s.cliff_front_left
+                 or s.cliff_front_right or s.cliff_right)
+        wheeldrop = bw.wheeldrop_left or bw.wheeldrop_right
+
+        # PERIGO (borda de escada / roda no ar): recua e gira bastante.
+        if cliff or wheeldrop:
+            esq = s.cliff_left or s.cliff_front_left or bw.wheeldrop_left
+            self._enfileirar_recuo(0.6, 0.7, vira_direita=esq)
+            return
+
+        # Esbarrou: recua pouco e desvia para o lado oposto.
+        if bw.bump_left and bw.bump_right:
+            self._enfileirar_recuo(0.4, 0.8, vira_direita=True)
+            return
+        if bw.bump_left:
+            self._enfileirar_recuo(0.3, 0.5, vira_direita=True)
+            return
+        if bw.bump_right:
+            self._enfileirar_recuo(0.3, 0.5, vira_direita=False)
+            return
+
+        # Caminho livre: frente. De vez em quando, leve desvio aleatório
+        # para vaguear (simula o padrão de limpeza por random-walk).
+        if random.random() < 0.04:
+            d = AUTO_TURN if random.random() < 0.5 else -AUTO_TURN
+            self._auto_q = [(d, -d, random.uniform(0.2, 0.5))]
+            self._auto_until = 0.0
+            return
+
+        self._auto_l = self._auto_r = AUTO_FWD
+        self._drive(AUTO_FWD, AUTO_FWD)
+
     # -- loop principal -------------------------------------------------------
 
     def run(self):
@@ -251,14 +373,18 @@ class ControlThread(threading.Thread):
             if self.state.take_dock_request():
                 self._seek_dock()
 
-            target_left, target_right, last_update = self.state.snapshot_target()
+            if self.state.get_auto():
+                # Modo autônomo: ignora alvo manual e heartbeat.
+                self._auto_step(agora)
+            else:
+                target_left, target_right, last_update = self.state.snapshot_target()
 
-            # Heartbeat do carrinho RC: comando velho -> para.
-            if agora - last_update > TIMEOUT:
-                target_left = 0
-                target_right = 0
+                # Heartbeat do carrinho RC: comando velho -> para.
+                if agora - last_update > TIMEOUT:
+                    target_left = 0
+                    target_right = 0
 
-            self._drive(target_left, target_right)
+                self._drive(target_left, target_right)
 
             # Bateria fora do hot loop (~2 s).
             if agora - ultima_leitura_bateria >= BATTERY_UPDATE:
@@ -306,13 +432,25 @@ player = None
 app_loop = None
 
 
+_music_bcast_pending = False
+
+
 def _on_music_change():
-    """Callback (thread do player) -> agenda broadcast no loop asyncio."""
-    if app_loop is not None:
-        app_loop.call_soon_threadsafe(lambda: asyncio.ensure_future(broadcast_music()))
+    """Callback (thread do player) -> agenda broadcast no loop asyncio.
+
+    Coalesce: no máximo um broadcast pendente por vez, evitando inundar o
+    event loop se o estado mudar muito rápido (ex.: troca rápida de faixa).
+    """
+    global _music_bcast_pending
+    if app_loop is None or _music_bcast_pending:
+        return
+    _music_bcast_pending = True
+    app_loop.call_soon_threadsafe(lambda: asyncio.ensure_future(broadcast_music()))
 
 
 async def broadcast_music():
+    global _music_bcast_pending
+    _music_bcast_pending = False
     if player is None:
         return
     info = player.state()
@@ -328,6 +466,16 @@ async def notify_roles():
     for ws in list(clients):
         try:
             await ws.send_json({"type": "role", "driver": ws is driver})
+        except Exception:
+            clients.discard(ws)
+
+
+async def broadcast_auto():
+    """Publica o estado do modo autônomo para todos os clientes."""
+    msg = {"type": "auto", "on": shared.get_auto()}
+    for ws in list(clients):
+        try:
+            await ws.send_json(msg)
         except Exception:
             clients.discard(ws)
 
@@ -364,6 +512,7 @@ async def handle_ws(request):
     # Envia a última bateria conhecida e o papel (motorista/espectador).
     try:
         await ws.send_json(shared.get_battery())
+        await ws.send_json({"type": "auto", "on": shared.get_auto()})
         if player is not None:
             await ws.send_json(player.state())
     except Exception:
@@ -423,9 +572,16 @@ async def handle_ws(request):
 
             elif tipo == "stop":
                 shared.request_stop()
+                await broadcast_auto()
 
             elif tipo == "dock":
                 shared.request_dock()
+                await broadcast_auto()
+
+            elif tipo == "auto":
+                # Liga/desliga o modo autônomo (vagar evitando quedas).
+                shared.set_auto(bool(data.get("on")))
+                await broadcast_auto()
 
             elif tipo == "vel":
                 # Ajuste de velocidade do d-pad é tratado no cliente; aqui
@@ -474,7 +630,10 @@ async def on_startup(app):
     app["control"].start()
     app["broadcaster"] = asyncio.create_task(battery_broadcaster(app))
 
-    player = MusicPlayer(MUSIC_DIR, alsa_dev=MUSIC_ALSA_DEV, on_change=_on_music_change)
+    player = MusicPlayer(
+        MUSIC_DIR, alsa_dev=MUSIC_ALSA_DEV, on_change=_on_music_change,
+        autoplay=MUSIC_AUTOPLAY,
+    )
     player.start()
 
 
