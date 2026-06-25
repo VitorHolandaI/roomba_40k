@@ -11,10 +11,15 @@ cd "$(dirname "$0")"
 
 VENV=".venv"
 
+if ! command -v uv >/dev/null; then
+  echo "[run] ERRO: 'uv' não encontrado. Instale uv antes de rodar."
+  exit 1
+fi
+
 # Cria venv na primeira execução.
 if [ ! -d "$VENV" ]; then
   echo "[run] criando venv..."
-  python3 -m venv "$VENV"
+  uv venv "$VENV"
 fi
 
 # shellcheck disable=SC1091
@@ -23,7 +28,7 @@ source "$VENV/bin/activate"
 # Instala deps se aiohttp ainda não estiver presente.
 if ! python -c "import aiohttp" 2>/dev/null; then
   echo "[run] instalando dependências..."
-  pip install -q --disable-pip-version-check -r requirements.txt
+  uv pip install -r requirements.txt
 fi
 
 # Aviso se o usuário não está no grupo dialout (acesso à serial).
@@ -39,4 +44,4 @@ if ! command -v mpg123 >/dev/null; then
 fi
 
 echo "[run] iniciando servidor..."
-exec python web/server.py
+exec python -m web.server

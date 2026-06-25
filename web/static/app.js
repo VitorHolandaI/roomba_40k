@@ -54,6 +54,7 @@
       else if (data.type === "role") updateRole(data.driver);
       else if (data.type === "music") updateMusic(data);
       else if (data.type === "auto") updateAuto(data.on);
+      else if (data.type === "clean_motors") updateCleanMotors(data.on);
       else if (data.type === "caveira") updateCaveira(data);
     };
   }
@@ -301,6 +302,20 @@
     curLeft = 0;
     curRight = 0;
     send({ type: "dock" });
+  });
+
+  var cleanMotorsOn = false;
+  var btnCleanMotors = document.getElementById("btn-clean-motors");
+
+  function updateCleanMotors(on) {
+    cleanMotorsOn = !!on;
+    btnCleanMotors.classList.toggle("on", cleanMotorsOn);
+    btnCleanMotors.textContent = cleanMotorsOn ? "Motores ON" : "Motores";
+  }
+
+  btnCleanMotors.addEventListener("click", function () {
+    if (!isDriver) return;
+    send({ type: "clean_motors", on: !cleanMotorsOn });
   });
 
   // ── Modo autônomo (vagar evitando quedas) ─────────────────────────────────

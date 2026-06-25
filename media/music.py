@@ -20,8 +20,9 @@ import subprocess
 class MusicPlayer:
     """Controla o mpg123 em modo remoto e a playlist sequencial."""
 
-    def __init__(self, music_dir, alsa_dev=None, on_change=None, volume=80,
-                 autoplay=False):
+    def __init__(
+        self, music_dir, alsa_dev=None, on_change=None, volume=80, autoplay=False
+    ):
         self.music_dir = os.path.expanduser(music_dir)
         self.alsa_dev = alsa_dev
         # Callback chamado (sem args) sempre que o estado muda, para broadcast.
@@ -81,7 +82,7 @@ class MusicPlayer:
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
-                bufsize=0,            # binário: nomes podem não ser UTF-8
+                bufsize=0,  # binário: nomes podem não ser UTF-8
             )
         except Exception as e:
             print(f"[music] falha ao iniciar mpg123: {e}")
@@ -199,7 +200,7 @@ class MusicPlayer:
                 paused = self.paused
                 cur = self.index
             if paused:
-                self._send("PAUSE")   # retoma
+                self._send("PAUSE")  # retoma
                 return
             idx = cur if cur >= 0 else 0
         self._load_index(idx)

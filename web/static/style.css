@@ -155,6 +155,8 @@ footer {
 .big.stop { background: var(--red); }
 .big.auto { background: var(--panel-hi); }
 .big.auto.on { background: var(--green); }   /* modo autônomo ligado */
+.big.clean-motors { background: var(--panel-hi); }
+.big.clean-motors.on { background: var(--green); }
 .big:active { filter: brightness(1.2); }
 
 /* Banner de papel (single-driver lock) */
