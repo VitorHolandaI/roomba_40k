@@ -19,7 +19,7 @@ PORT = os.environ.get("ROOMBA_PORT", "/dev/ttyUSB0")
 HTTP_PORT = int(os.environ.get("ROOMBA_HTTP_PORT", "8080"))
 MUSIC_DIR = os.environ.get("MUSIC_DIR", "~/Music")
 MUSIC_ALSA_DEV = os.environ.get("MUSIC_ALSA_DEV", "hw:1,0")
-MUSIC_AUTOPLAY = os.environ.get("MUSIC_AUTOPLAY", "1") != "0"
+MUSIC_AUTOPLAY = os.environ.get("MUSIC_AUTOPLAY", "0") == "1"
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
 

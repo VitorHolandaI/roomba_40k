@@ -99,9 +99,8 @@ class MusicPlayer:
             f"{self.music_dir} | saída: {self.alsa_dev or 'padrão'}"
         )
         # Toca a primeira faixa automaticamente, se pedido e houver playlist.
-
-    #        if self.autoplay and self.playlist:
-    #            continue
+        if self.autoplay and self.playlist:
+            self.play(0)
 
     def stop_proc(self):
         if self.proc is not None:
