@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>roomba cam</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; height: 100vh; display: flex; flex-direction: column;
+    background: #0b0b0d; color: #d6d6da; font: 14px/1.4 monospace;
+  }
+  header {
+    display: flex; gap: .75rem; align-items: center;
+    padding: .5rem .75rem; border-bottom: 1px solid #1d1d22;
+  }
+  header b { color: #6ee7b7; }
+  button {
+    background: #1d1d22; color: #d6d6da; border: 1px solid #2c2c33;
+    padding: .35rem .7rem; border-radius: 6px; cursor: pointer; font: inherit;
+  }
+  button:hover { border-color: #6ee7b7; }
+  .stage {
+    position: relative; flex: 1; display: grid; place-items: center;
+    overflow: hidden;
+  }
+  #feed { max-width: 100%; max-height: 100%; display: block; }
+  /* Crosshair + thirds grid help align the camera to a target. */
+  .overlay {
+    position: absolute; inset: 0; pointer-events: none; display: none;
+  }
+  .overlay.on { display: block; }
+  .overlay::before, .overlay::after {
+    content: ""; position: absolute; background: rgba(110,231,183,.5);
+  }
+  .overlay::before { left: 50%; top: 0; bottom: 0; width: 1px; }
+  .overlay::after  { top: 50%; left: 0; right: 0; height: 1px; }
+</style>
+</head>
+<body>
+  <header>
+    <b>roomba cam</b>
+    <span id="status">connecting…</span>
+    <span style="flex:1"></span>
+    <button id="grid">crosshair</button>
+    <button id="reload">reconnect</button>
+  </header>
+  <div class="stage">
+    <img id="feed" alt="camera feed" />
+    <div class="overlay" id="overlay"></div>
+  </div>
+<script>
+  const feed = document.getElementById("feed");
+  const status = document.getElementById("status");
+  const overlay = document.getElementById("overlay");
+
+  function connect() {
+    status.textContent = "live";
+    // Cache-bust so reconnect always restarts the ffmpeg pipe.
+    feed.src = "/stream?t=" + Date.now();
+  }
+  feed.onerror = () => { status.textContent = "no signal — camera busy or off"; };
+
+  document.getElementById("grid").onclick = () => overlay.classList.toggle("on");
+  document.getElementById("reload").onclick = connect;
+  connect();
+</script>
+</body>
+</html>
