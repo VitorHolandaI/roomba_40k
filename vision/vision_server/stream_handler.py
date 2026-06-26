@@ -29,7 +29,9 @@ async def handle_stream(request: web.Request) -> web.StreamResponse:
 
 async def _stream_to(request: web.Request) -> web.StreamResponse:
     config: CameraConfig = request.app["camera_cfg"]
-    source = MjpegSource(config.device, config.width, config.height, config.fps)
+    source = MjpegSource(
+        config.device, config.width, config.height, config.fps, config.input_format
+    )
     await source.start()
     response = _open_response()
     try:

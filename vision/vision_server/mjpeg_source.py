@@ -6,7 +6,7 @@ re-encoding. That keeps latency low enough to eyeball webcam placement.
 
 Example::
 
-    source = MjpegSource("/dev/video0", 640, 480, 15)
+    source = MjpegSource("/dev/video0", 640, 480, 15, "mjpeg")
     await source.start()
     async for jpeg in source.frames():
         ...  # raw JPEG bytes, ready to push to a browser <img>
@@ -44,11 +44,14 @@ def _pop_frame(buffer: bytearray) -> Optional[bytes]:
 class MjpegSource:
     """Owns one ffmpeg capture process and yields its JPEG frames."""
 
-    def __init__(self, device: str, width: int, height: int, fps: int) -> None:
+    def __init__(
+        self, device: str, width: int, height: int, fps: int, input_format: str
+    ) -> None:
         self._device = device
         self._width = width
         self._height = height
         self._fps = fps
+        self._input_format = input_format
         self._proc: Optional[asyncio.subprocess.Process] = None
 
     def _ffmpeg_args(self) -> List[str]:
@@ -56,7 +59,7 @@ class MjpegSource:
             "ffmpeg",
             "-loglevel", "error",
             "-f", "v4l2",
-            "-input_format", "mjpeg",
+            "-input_format", self._input_format,
             "-video_size", f"{self._width}x{self._height}",
             "-framerate", str(self._fps),
             "-i", self._device,

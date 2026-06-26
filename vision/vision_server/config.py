@@ -16,6 +16,10 @@ class CameraConfig:
     width: int
     height: int
     fps: int
+    # ffmpeg's name for the camera's native compressed format. Both
+    # V4L2_PIX_FMT_MJPEG ('MJPG') and V4L2_PIX_FMT_JPEG ('JPEG') decode
+    # to ffmpeg's "mjpeg"; override only if `-list_formats` disagrees.
+    input_format: str
 
     @staticmethod
     def from_env() -> "CameraConfig":
@@ -24,4 +28,5 @@ class CameraConfig:
             width=int(os.environ.get("CAM_WIDTH", "640")),
             height=int(os.environ.get("CAM_HEIGHT", "480")),
             fps=int(os.environ.get("CAM_FPS", "15")),
+            input_format=os.environ.get("CAM_INPUT_FORMAT", "mjpeg"),
         )
