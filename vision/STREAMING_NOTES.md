@@ -103,6 +103,9 @@ the Python relay because it:
 - **drops stale frames** so latency never piles up,
 - exposes a built-in viewer, `/stream`, and `/snapshot`.
 
+Ready-to-run script: **`./vision/stream_cam.sh`** (wraps the command below,
+configurable via `CAM_RES` / `CAM_FPS` / `CAM_DEVICE` / `CAM_PORT`).
+
 Install + run:
 
 ```bash

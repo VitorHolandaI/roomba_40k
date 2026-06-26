@@ -2,24 +2,35 @@
 
 import time
 import threading
+from typing import Optional
 
 from roomba.interface import RoombaInterface
 from roomba.auto import AutoPilot
 from roomba.battery import read_battery
+from roomba.bump_watch import BumpWatcher
 from roomba.drive import is_drive_stale
-from web.constants import TIMEOUT, BATTERY_INTERVAL, LOOP_PERIOD
+from media.bump_audio import BumpAudioPlayer
+from web.constants import TIMEOUT, BATTERY_INTERVAL, LOOP_PERIOD, BUMP_AUDIO_POLL
 from web.shared_state import SharedState
 
 
 class ControlThread(threading.Thread):
     """Blocking control loop running in a dedicated thread."""
 
-    def __init__(self, state: SharedState, port: str = "/dev/ttyUSB0") -> None:
+    def __init__(
+        self,
+        state: SharedState,
+        port: str = "/dev/ttyUSB0",
+        effects: Optional[BumpAudioPlayer] = None,
+    ) -> None:
         super().__init__(daemon=True)
         self.state = state
         self.port = port
         self.bot = RoombaInterface(port)
         self.auto = AutoPilot()
+        # Bump sound effects: optional so the controller runs without audio.
+        self._effects = effects
+        self._bump_watch = BumpWatcher()
         self._running = threading.Event()
         self._running.set()
         self._sent_clean = False
@@ -27,6 +38,7 @@ class ControlThread(threading.Thread):
     def run(self) -> None:
         self.bot.connect()
         last_battery = 0.0
+        last_bump = 0.0
 
         while self._running.is_set():
             now = time.time()
@@ -36,6 +48,10 @@ class ControlThread(threading.Thread):
                 continue
 
             self._sync_clean_motors()
+
+            if now - last_bump >= BUMP_AUDIO_POLL:
+                self._poll_bump_audio()
+                last_bump = now
 
             if self.state.get_auto():
                 self._auto_step(now)
@@ -49,6 +65,17 @@ class ControlThread(threading.Thread):
             time.sleep(LOOP_PERIOD)
 
         self._shutdown()
+
+    def _poll_bump_audio(self) -> None:
+        """Play a funny sound on the rising edge of a bump (manual or auto).
+
+        Runs in both modes so the gag fires even while driving by hand; the
+        auto-pilot's own sensor read stays separate to keep its logic intact.
+        """
+        if self._effects is None:
+            return
+        if self._bump_watch.bumped(self.bot.get_sensors()):
+            self._effects.trigger()
 
     def _sync_clean_motors(self) -> None:
         desired = self.state.get_clean_motors()
@@ -74,4 +101,6 @@ class ControlThread(threading.Thread):
         self._running.clear()
 
     def _shutdown(self) -> None:
+        if self._effects is not None:
+            self._effects.stop()
         self.bot.shutdown()

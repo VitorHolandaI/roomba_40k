@@ -6,6 +6,8 @@ import os
 
 from aiohttp import web
 
+from config import BUMP_AUDIO_DIR, BUMP_AUDIO_ALSA_DEV
+from media.bump_audio import BumpAudioPlayer
 from media.music import MusicPlayer
 from web.broadcast import battery_broadcaster, broadcast_music
 from web.control_thread import ControlThread
@@ -53,8 +55,10 @@ async def on_startup(app: web.Application) -> None:
     registry.loop = asyncio.get_running_loop()
 
     # Long-running hardware polling lives off the event loop; lightweight
-    # websocket status pushes stay as asyncio tasks.
-    app["control"] = ControlThread(app["state"], port=PORT)
+    # websocket status pushes stay as asyncio tasks. The bump sound effects
+    # are owned by the control thread so a hit fires audio without the loop.
+    app["effects"] = BumpAudioPlayer(BUMP_AUDIO_DIR, alsa_dev=BUMP_AUDIO_ALSA_DEV)
+    app["control"] = ControlThread(app["state"], port=PORT, effects=app["effects"])
     app["control"].start()
     app["broadcaster"] = asyncio.create_task(
         battery_broadcaster(registry, app["state"])
