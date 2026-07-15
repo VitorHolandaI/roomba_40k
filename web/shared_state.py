@@ -17,6 +17,8 @@ class SharedState:
         self._target_right = 0
         self._last_update = 0.0
         self._dock_requested = False
+        self._wake_requested = False
+        self._song_request: Optional[int] = None
         self._auto_mode = False
         self._speed = 150
         self._clean_motors_on = False
@@ -44,6 +46,14 @@ class SharedState:
             self._target_right = 0
             self._dock_requested = True
             self._auto_mode = False
+
+    def request_wake(self) -> None:
+        with self._lock:
+            self._wake_requested = True
+
+    def request_song(self, index: int) -> None:
+        with self._lock:
+            self._song_request = int(index)
 
     def set_auto(self, on: bool) -> None:
         with self._lock:
@@ -83,6 +93,18 @@ class SharedState:
             req = self._dock_requested
             self._dock_requested = False
             return req
+
+    def take_wake_request(self) -> bool:
+        with self._lock:
+            req = self._wake_requested
+            self._wake_requested = False
+            return req
+
+    def take_song_request(self) -> Optional[int]:
+        with self._lock:
+            idx = self._song_request
+            self._song_request = None
+            return idx
 
     def set_battery(self, info: Optional[BatteryInfo]) -> None:
         with self._lock:

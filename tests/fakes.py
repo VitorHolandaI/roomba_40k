@@ -25,6 +25,13 @@ class FakeRoomba:
     def seek_dock(self) -> None:
         self.calls.append(("seek_dock", ()))
 
+    def wake(self) -> None:
+        self.calls.append(("wake", ()))
+
+    def play_song(self, song_num: int, notes: Tuple[int, ...]) -> float:
+        self.calls.append(("play_song", (song_num, notes)))
+        return 0.0
+
     def set_clean_motors(self, on: bool) -> None:
         self.calls.append(("clean_motors", (on,)))
 

@@ -203,6 +203,22 @@ body.spectator footer { opacity: .35; pointer-events: none; }
 }
 #music-list li.cur { background: var(--panel-hi); color: var(--text); font-weight: 600; }
 
+#roomba-songs {
+  margin: .5rem .75rem; padding: .6rem .8rem;
+  background: var(--panel); border-radius: 10px;
+}
+.rs-head {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: .5rem; font-weight: 600; margin-bottom: .5rem;
+}
+.rs-head .mbtn { flex: 0 0 auto; padding: .4rem .7rem; font-size: .9rem; }
+#rs-list { list-style: none; margin: 0; padding: 0; }
+#rs-list li {
+  padding: .5rem; border-radius: 6px; font-size: .9rem;
+  color: var(--muted); cursor: pointer;
+}
+#rs-list li:active { background: var(--panel-hi); color: var(--text); }
+
 .music-vol {
   display: flex; align-items: center; gap: .5rem; margin-top: .6rem;
 }

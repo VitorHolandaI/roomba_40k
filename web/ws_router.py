@@ -6,6 +6,7 @@ from typing import Awaitable, Callable, Optional, cast
 from aiohttp import web, WSMsgType
 
 from roomba.drive import clamp_velocity
+from roomba.songbook import song_titles
 from web.broadcast import (
     broadcast_auto,
     broadcast_clean_motors,
@@ -84,6 +85,15 @@ async def _cmd_clean(
     await broadcast_clean_motors(registry, state)
 
 
+async def _cmd_wake(
+    _ws: web.WebSocketResponse,
+    _registry: WebRegistry,
+    state: SharedState,
+    _data: Payload,
+) -> None:
+    state.request_wake()
+
+
 async def _cmd_vel(
     _ws: web.WebSocketResponse,
     _registry: WebRegistry,
@@ -100,6 +110,7 @@ _COMMANDS: dict[str, _CommandHandler] = {
     "auto": _cmd_auto,
     "clean_motors": _cmd_clean,
     "vel": _cmd_vel,
+    "wake": _cmd_wake,
 }
 
 
@@ -127,6 +138,14 @@ def _handle_music(registry: WebRegistry, data: Payload) -> None:
     handler = no_arg_actions.get(action)
     if handler is not None:
         handler()
+
+
+def _handle_roomba_song(state: SharedState, data: Payload) -> None:
+    """Queue a songbook melody for the control thread to play on the piezo."""
+    index = data.get("index")
+    if isinstance(index, bool) or not isinstance(index, (int, float)):
+        return
+    state.request_song(int(index))
 
 
 def _parse_payload(raw: str) -> Optional[Payload]:
@@ -160,6 +179,10 @@ async def dispatch_message(
         _handle_music(registry, data)
         return
 
+    if command_type == "roomba_song":
+        _handle_roomba_song(state, data)
+        return
+
     if ws is not registry.driver:
         return
 
@@ -183,6 +206,7 @@ async def handle_ws(request: web.Request) -> web.WebSocketResponse:
         await ws.send_json(state.get_battery())
         await ws.send_json({"type": "auto", "on": state.get_auto()})
         await ws.send_json({"type": "clean_motors", "on": state.get_clean_motors()})
+        await ws.send_json({"type": "roomba_songs", "songs": song_titles()})
         if registry.player is not None:
             await ws.send_json(registry.player.state())
     except Exception:

@@ -116,6 +116,39 @@ class RoombaInterface:
         self._sent_left = None
         self._sent_right = None
 
+    def wake(self) -> None:
+        """Pulse BRC (RTS/DTR) to reset the passive-mode 5-min sleep timer.
+
+        OI spec pg 7. Warning: the official iRobot cable is miswired, so the
+        pulse may not reach the robot (see pycreate2.wake / robotics.SE #7895).
+        Blocks ~3 s, so only the control thread should call it.
+        """
+        if self._bot is None:
+            return
+        try:
+            self._bot.wake()
+        except Exception:
+            pass
+
+    # -- onboard beeper --------------------------------------------------------
+
+    def play_song(self, song_num: int, notes: tuple[int, ...]) -> float:
+        """Define (opcode 140) then play (141) a song on the robot's piezo.
+
+        ``notes`` is the flat (note, dur, ...) tuple from ``roomba.songbook``.
+        Returns the song duration in seconds (0.0 when the robot is absent),
+        so the caller can pace back-to-back songs. Independent of the RPi
+        speaker driven by ``media.music``.
+        """
+        if self._bot is None:
+            return 0.0
+        try:
+            self.ensure_safe()
+            self._bot.createSong(song_num, notes)
+            return float(self._bot.playSong(song_num))
+        except Exception:
+            return 0.0
+
     # -- cleaning motors -------------------------------------------------------
 
     def set_clean_motors(self, on: bool) -> None:

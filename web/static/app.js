@@ -56,6 +56,7 @@
       else if (data.type === "auto") updateAuto(data.on);
       else if (data.type === "clean_motors") updateCleanMotors(data.on);
       else if (data.type === "caveira") updateCaveira(data);
+      else if (data.type === "roomba_songs") updateRoombaSongs(data.songs);
     };
   }
 
@@ -408,6 +409,29 @@
     send({ type: "music", action: "volume", value: parseInt(mVol.value, 10) });
   });
   mVol.addEventListener("change", function () { draggingVol = false; });
+
+  // ── Bipes do próprio Roomba (alto-falante interno, via SCI) ──────────────
+  // Independente do player de MP3: o som sai do piezo do robô, não do
+  // alto-falante USB. Lista estática enviada uma vez na conexão.
+  var rsList = document.getElementById("rs-list");
+
+  function updateRoombaSongs(songs) {
+    if (!Array.isArray(songs)) return;
+    rsList.innerHTML = "";
+    songs.forEach(function (title, i) {
+      var li = document.createElement("li");
+      li.textContent = title;
+      li.addEventListener("click", function () {
+        send({ type: "roomba_song", index: i });
+      });
+      rsList.appendChild(li);
+    });
+  }
+
+  document.getElementById("btn-wake").addEventListener("click", function () {
+    if (!isDriver) return;
+    send({ type: "wake" });
+  });
 
   // Para por segurança quando a aba perde foco / é escondida.
   window.addEventListener("blur", stopDrive);

@@ -9,6 +9,7 @@ from roomba.auto import AutoPilot
 from roomba.battery import read_battery
 from roomba.bump_watch import BumpWatcher
 from roomba.drive import is_drive_stale
+from roomba.songbook import SONGBOOK, notes_for
 from media.bump_audio import BumpAudioPlayer
 from web.constants import TIMEOUT, BATTERY_INTERVAL, LOOP_PERIOD, BUMP_AUDIO_POLL
 from web.shared_state import SharedState
@@ -47,6 +48,12 @@ class ControlThread(threading.Thread):
                 self.bot.seek_dock()
                 continue
 
+            if self.state.take_wake_request():
+                self.bot.wake()
+                continue
+
+            self._play_requested_song()
+
             self._sync_clean_motors()
 
             if now - last_bump >= BUMP_AUDIO_POLL:
@@ -76,6 +83,17 @@ class ControlThread(threading.Thread):
             return
         if self._bump_watch.bumped(self.bot.get_sensors()):
             self._effects.trigger()
+
+    def _play_requested_song(self) -> None:
+        """Play a songbook melody on the robot's piezo when the UI asks.
+
+        Out-of-range indices are dropped rather than raised so a bad client
+        message never kills the control loop.
+        """
+        index = self.state.take_song_request()
+        if index is None or not 0 <= index < len(SONGBOOK):
+            return
+        self.bot.play_song(index, notes_for(index))
 
     def _sync_clean_motors(self) -> None:
         desired = self.state.get_clean_motors()
