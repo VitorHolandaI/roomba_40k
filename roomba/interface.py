@@ -28,6 +28,11 @@ class RoombaInterface:
             self._bot.start()
             self._bot.safe()
             time.sleep(0.2)
+            # Assume Passive até o 1º movimento: se subimos com o robô no
+            # carregador (ou ele largou a OI ao carregar), o start+safe acima
+            # pode não ter pego. Marcar passivo força ensure_safe() a refazer
+            # a sequência de undock no primeiro drive.
+            self.passivo = True
         except Exception:
             self._bot = None
             Create2.__del__ = lambda self: None
@@ -48,11 +53,20 @@ class RoombaInterface:
     # -- mode helpers ----------------------------------------------------------
 
     def ensure_safe(self) -> None:
-        """Re-enter Safe mode after a Passive event (e.g. Dock)."""
+        """Sair de Passive antes de dirigir (ex.: saindo do carregador).
+
+        No carregador o robô fica em Passive e às vezes largou a OI; um
+        `safe()` sozinho não sai. Sequência de undock que funciona: `start()`
+        reabre a OI, `safe()` sai de Passive (para de carregar e libera o
+        drive). Só roda uma vez (passivo -> False) para não custar a 10 Hz.
+        """
         if not self.passivo or self._bot is None:
             return
         try:
+            self._bot.start()
+            time.sleep(0.05)
             self._bot.safe()
+            time.sleep(0.05)
         except Exception:
             pass
         self.passivo = False
