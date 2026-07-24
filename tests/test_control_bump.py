@@ -13,8 +13,14 @@ class _FakeBumps:
 
 
 class _FakeSensors:
-    def __init__(self, left: bool, right: bool) -> None:
+    def __init__(
+        self, left: bool, right: bool, cliff_front_left: bool = False
+    ) -> None:
         self.bumps_wheeldrops = _FakeBumps(left, right)
+        self.cliff_left = False
+        self.cliff_front_left = cliff_front_left
+        self.cliff_front_right = False
+        self.cliff_right = False
 
 
 class _SequenceBot:
@@ -77,7 +83,8 @@ def test_bump_state_published_to_shared_state() -> None:
 
     control._poll_bump_audio()
 
-    assert control.state.get_bumps() == {"type": "bump", "left": True, "right": False}
+    bumps = control.state.get_bumps()
+    assert (bumps["left"], bumps["right"]) == (True, False)
 
 
 def test_no_sensors_publishes_off() -> None:
@@ -86,3 +93,12 @@ def test_no_sensors_publishes_off() -> None:
     control._poll_bump_audio()
 
     assert control.state.get_bumps()["left"] is False
+
+
+def test_cliff_state_published() -> None:
+    bot = _SequenceBot([_FakeSensors(False, False, cliff_front_left=True)])
+    control = _control(bot, None)
+
+    control._poll_bump_audio()
+
+    assert control.state.get_bumps()["cliff_front_left"] is True

@@ -209,6 +209,7 @@ body.spectator footer { opacity: .35; pointer-events: none; }
   background: var(--panel-hi); color: var(--muted); transition: none;
 }
 .bump.on { background: #e33; color: #fff; }
+.cliff.on { background: #f90; color: #000; }
 
 .key-legend { display: grid; gap: .4rem; justify-items: center; padding: .5rem; }
 .key-row { color: var(--muted); font-size: .95rem; }

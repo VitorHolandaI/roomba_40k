@@ -25,6 +25,7 @@ class SharedState:
         self._battery: Optional[BatteryInfo] = None
         self._bump_left = False
         self._bump_right = False
+        self._cliffs = (False, False, False, False)
 
     # -- web layer writes -------------------------------------------------------
 
@@ -113,12 +114,28 @@ class SharedState:
             self._bump_left = bool(left)
             self._bump_right = bool(right)
 
+    def set_cliffs(
+        self, left: bool, front_left: bool, front_right: bool, right: bool
+    ) -> None:
+        with self._lock:
+            self._cliffs = (
+                bool(left),
+                bool(front_left),
+                bool(front_right),
+                bool(right),
+            )
+
     def get_bumps(self) -> dict[str, object]:
         with self._lock:
+            cliff_l, cliff_fl, cliff_fr, cliff_r = self._cliffs
             return {
                 "type": "bump",
                 "left": self._bump_left,
                 "right": self._bump_right,
+                "cliff_left": cliff_l,
+                "cliff_front_left": cliff_fl,
+                "cliff_front_right": cliff_fr,
+                "cliff_right": cliff_r,
             }
 
     def set_battery(self, info: Optional[BatteryInfo]) -> None:

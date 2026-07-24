@@ -88,8 +88,15 @@ class ControlThread(threading.Thread):
         bumps = getattr(sensors, "bumps_wheeldrops", None)
         if bumps is None:
             self.state.set_bumps(False, False)
+            self.state.set_cliffs(False, False, False, False)
             return
         self.state.set_bumps(bool(bumps.bump_left), bool(bumps.bump_right))
+        self.state.set_cliffs(
+            bool(getattr(sensors, "cliff_left", False)),
+            bool(getattr(sensors, "cliff_front_left", False)),
+            bool(getattr(sensors, "cliff_front_right", False)),
+            bool(getattr(sensors, "cliff_right", False)),
+        )
 
     def _play_requested_song(self) -> None:
         """Play a songbook melody on the robot's piezo when the UI asks.

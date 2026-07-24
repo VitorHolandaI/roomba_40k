@@ -371,9 +371,17 @@
   // ── Sensores de toque (bump) ──────────────────────────────────────────────
   var bumpL = document.getElementById("bump-l");
   var bumpR = document.getElementById("bump-r");
+  var cliffL = document.getElementById("cliff-l");
+  var cliffFL = document.getElementById("cliff-fl");
+  var cliffFR = document.getElementById("cliff-fr");
+  var cliffR = document.getElementById("cliff-r");
   function updateBump(b) {
     bumpL.classList.toggle("on", !!b.left);
     bumpR.classList.toggle("on", !!b.right);
+    cliffL.classList.toggle("on", !!b.cliff_left);
+    cliffFL.classList.toggle("on", !!b.cliff_front_left);
+    cliffFR.classList.toggle("on", !!b.cliff_front_right);
+    cliffR.classList.toggle("on", !!b.cliff_right);
   }
 
   // ── Sensor da caveira (clearance frontal) ─────────────────────────────────

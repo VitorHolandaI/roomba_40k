@@ -28,8 +28,19 @@ def test_dock_request_is_single_use_and_stops_robot() -> None:
 
 def test_bumps_default_off_and_roundtrip() -> None:
     state = SharedState()
-    assert state.get_bumps() == {"type": "bump", "left": False, "right": False}
+    assert state.get_bumps()["left"] is False
+    assert state.get_bumps()["right"] is False
 
     state.set_bumps(True, False)
 
-    assert state.get_bumps() == {"type": "bump", "left": True, "right": False}
+    assert state.get_bumps()["left"] is True
+    assert state.get_bumps()["right"] is False
+
+
+def test_cliffs_roundtrip() -> None:
+    state = SharedState()
+    assert state.get_bumps()["cliff_front_right"] is False
+
+    state.set_cliffs(False, False, True, False)
+
+    assert state.get_bumps()["cliff_front_right"] is True
