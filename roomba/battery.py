@@ -4,12 +4,14 @@ from typing import Optional
 
 from roomba.types import BatteryInfo
 
+# Valores do pacote OI #34 (Charging State). O 4 é "Waiting" (aguardando),
+# NÃO "carga completa" — carga cheia se infere de charge ≈ capacity.
 _CHARGER_STATES = {
     0: "Não carregando",
     1: "Recuperação",
     2: "Carregando",
     3: "Carga lenta",
-    4: "Completa",
+    4: "Aguardando",
     5: "Falha",
 }
 
@@ -28,7 +30,9 @@ def read_battery(bot: object) -> Optional[BatteryInfo]:
         return None
 
     charge = sensors.battery_charge  # type: ignore[attr-defined]
-    percentual = (charge / capacity) * 100
+    # Clamp: no Roomba o capacity vem descalibrado às vezes e charge/capacity
+    # estoura 100% (ou fica negativo). Trava em [0, 100] pra UI não mostrar lixo.
+    percentual = max(0.0, min(100.0, (charge / capacity) * 100))
     estado = _CHARGER_STATES.get(
         sensors.charger_state,  # type: ignore[attr-defined]
         "Desconhecido",
