@@ -14,3 +14,7 @@ paths:
     rpiCameraHeight: 240
     rpiCameraFPS: 12
     rpiCameraBitrate: 800000
+    # Keyframe a cada 15 frames (~1s). Sem isso, ao perder um pacote o vídeo
+    # congela até o próximo keyframe (raro) e só o F5 recupera. Frequente =
+    # recuperação automática em ~1s.
+    rpiCameraIDRPeriod: 15
