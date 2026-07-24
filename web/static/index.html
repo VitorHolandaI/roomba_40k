@@ -31,6 +31,13 @@
     <button id="btn-claim">Assumir controle</button>
   </div>
 
+  <!-- Câmera CSI (stream MJPEG do ffmpeg em porta separada; ver
+       vision/stream_csi.sh). Fica num <img> porque o browser baixa o
+       multipart se aberto direto na URL. -->
+  <section id="cam-sec">
+    <img id="cam" alt="câmera off — rode vision/stream_csi.sh no Pi">
+  </section>
+
   <!-- Seletor de modo -->
   <nav id="modes">
     <button class="mode-btn active" data-mode="dpad">D-Pad</button>

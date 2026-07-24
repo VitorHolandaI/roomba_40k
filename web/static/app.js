@@ -439,6 +439,15 @@
     if (document.hidden) stopDrive();
   });
 
+  // ── Câmera CSI ────────────────────────────────────────────────────────────
+  // O ffmpeg (vision/stream_csi.sh) serve o MJPEG na porta 8081 do mesmo host.
+  // Porta separada do app (8080). Se o stream não estiver no ar, o <img>
+  // dispara onerror e escondemos a seção.
+  var CAM_PORT = 8081;
+  var cam = document.getElementById("cam");
+  cam.onerror = function () { cam.parentElement.classList.add("hidden"); };
+  cam.src = location.protocol + "//" + location.hostname + ":" + CAM_PORT + "/";
+
   // ── Inicializa ────────────────────────────────────────────────────────────
   connect();
 })();

@@ -203,6 +203,12 @@ body.spectator footer { opacity: .35; pointer-events: none; }
 }
 #music-list li.cur { background: var(--panel-hi); color: var(--text); font-weight: 600; }
 
+#cam-sec { margin: .5rem .75rem; text-align: center; }
+#cam {
+  width: 100%; max-width: 480px; border-radius: 10px;
+  background: #000; aspect-ratio: 4 / 3;
+}
+
 #roomba-songs {
   margin: .5rem .75rem; padding: .6rem .8rem;
   background: var(--panel); border-radius: 10px;
