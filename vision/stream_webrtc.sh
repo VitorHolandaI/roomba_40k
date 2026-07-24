@@ -37,5 +37,14 @@ if [ ! -x "$BIN" ]; then
   echo "[webrtc] mediamtx instalado em $BIN"
 fi
 
-echo "[webrtc] player: http://0.0.0.0:8889/cam"
+# O mediamtx às vezes só descobre 127.0.0.1 como candidato ICE — aí clientes
+# em outra máquina dão "deadline exceeded while waiting connection". Anuncia
+# o IP real (wifi ou AP) para o WebRTC ter um candidato alcançável.
+IP="$(hostname -I | awk '{print $1}')"
+if [ -n "$IP" ]; then
+  export MTX_WEBRTCADDITIONALHOSTS="$IP"
+  echo "[webrtc] anunciando host ICE: $IP"
+fi
+
+echo "[webrtc] player: http://$IP:8889/cam"
 exec "$BIN" "$CFG"
