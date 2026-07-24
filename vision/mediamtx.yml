@@ -7,12 +7,12 @@
 paths:
   cam:
     source: rpiCamera
-    # 640x480: teto REALISTA do teu link atual (cross-subnet). O gargalo é a
-    # REDE, não a câmera — 720p/1080p só passam no AP do robô (mesma subnet)
-    # ou wifi forte. Se ainda travar aqui, desce pra 320x240.
-    rpiCameraWidth: 640
-    rpiCameraHeight: 480
-    rpiCameraFPS: 15
-    rpiCameraBitrate: 1500000
+    # 320x240: config que rodou usável. O gargalo é a REDE (cliente em subnet
+    # diferente do Pi = hop fraco), não a câmera. Subir resolução aqui só piora.
+    # Pra qualidade maior, resolver a rede: AP do robô (mesma subnet).
+    rpiCameraWidth: 320
+    rpiCameraHeight: 240
+    rpiCameraFPS: 12
+    rpiCameraBitrate: 800000
     # Keyframe a cada 15 frames (~1s): recupera sozinho após perda, sem F5.
     rpiCameraIDRPeriod: 15
