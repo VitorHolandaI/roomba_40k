@@ -219,7 +219,7 @@ kbd {
 
 #cam-sec { margin: .5rem .75rem; text-align: center; }
 #cam {
-  width: 100%; max-width: 480px; border-radius: 10px;
+  width: 100%; max-width: 800px; border-radius: 10px;
   background: #000; aspect-ratio: 4 / 3; border: 0; display: block;
   margin: 0 auto;
 }
