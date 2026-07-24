@@ -7,9 +7,10 @@
 paths:
   cam:
     source: rpiCamera
-    rpiCameraWidth: 640
-    rpiCameraHeight: 480
-    # 15 fps + bitrate baixo p/ o wifi do Pi 3 dar conta — senão o mediamtx
-    # avisa "reader is too slow, discarding frames" (cliente atrás da câmera).
-    rpiCameraFPS: 15
-    rpiCameraBitrate: 1500000
+    # Conservador p/ wifi fraco do Pi 3 (cliente em subnet diferente = hop
+    # extra). Se o link aguentar, suba res/fps/bitrate. "reader is too slow"
+    # = cliente atrás da câmera; some ao reduzir a produção.
+    rpiCameraWidth: 320
+    rpiCameraHeight: 240
+    rpiCameraFPS: 12
+    rpiCameraBitrate: 800000
