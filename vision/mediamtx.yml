@@ -7,14 +7,13 @@
 paths:
   cam:
     source: rpiCamera
-    # Conservador p/ wifi fraco do Pi 3 (cliente em subnet diferente = hop
-    # extra). Se o link aguentar, suba res/fps/bitrate. "reader is too slow"
-    # = cliente atrás da câmera; some ao reduzir a produção.
-    rpiCameraWidth: 320
-    rpiCameraHeight: 240
-    rpiCameraFPS: 12
-    rpiCameraBitrate: 800000
-    # Keyframe a cada 15 frames (~1s). Sem isso, ao perder um pacote o vídeo
-    # congela até o próximo keyframe (raro) e só o F5 recupera. Frequente =
-    # recuperação automática em ~1s.
+    # Resolução MÁXIMA streamável: 1920x1080 = teto do encoder H.264 de HW do
+    # Pi 3 (acima disso cairia em software e mataria o Pi). Exige link bom —
+    # no wifi fraco/cross-subnet vai voltar "reader is too slow" e travar;
+    # nesse caso use o AP do robô (mesma subnet) ou baixe pra 1280x720.
+    rpiCameraWidth: 1920
+    rpiCameraHeight: 1080
+    rpiCameraFPS: 15
+    rpiCameraBitrate: 4500000
+    # Keyframe a cada 15 frames (~1s): recupera sozinho após perda, sem F5.
     rpiCameraIDRPeriod: 15
