@@ -15,9 +15,6 @@ paths:
     rpiCameraWidth: 640
     rpiCameraHeight: 480
     rpiCameraFPS: 12
-    # Bitrate maior = menos compressão = mais detalhe (custa pouca banda a
-    # mais que subir resolução). Sharpness realça bordas no ISP.
-    rpiCameraBitrate: 2500000
-    rpiCameraSharpness: 1.5
+    rpiCameraBitrate: 1200000
     # Keyframe a cada 15 frames (~1s): recupera sozinho após perda, sem F5.
     rpiCameraIDRPeriod: 15
