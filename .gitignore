@@ -15,6 +15,9 @@ env/
 *.swp
 .DS_Store
 
+# Binário do mediamtx (baixado por vision/stream_webrtc.sh)
+vision/mediamtx_bin/
+
 # Local agent notes
 CLAUDE.md
 HANDOFF.md

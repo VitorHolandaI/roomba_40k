@@ -439,14 +439,13 @@
     if (document.hidden) stopDrive();
   });
 
-  // ── Câmera CSI ────────────────────────────────────────────────────────────
-  // O ffmpeg (vision/stream_csi.sh) serve o MJPEG na porta 8081 do mesmo host.
-  // Porta separada do app (8080). Se o stream não estiver no ar, o <img>
-  // dispara onerror e escondemos a seção.
-  var CAM_PORT = 8081;
-  var cam = document.getElementById("cam");
-  cam.onerror = function () { cam.parentElement.classList.add("hidden"); };
-  cam.src = location.protocol + "//" + location.hostname + ":" + CAM_PORT + "/";
+  // ── Câmera CSI (WebRTC via mediamtx) ──────────────────────────────────────
+  // O mediamtx (vision/stream_webrtc.sh) serve o player WebRTC na porta 8889
+  // do mesmo host. Baixa latência (mídia UDP). Se não estiver no ar o iframe
+  // fica preto — sem quebrar o resto do app.
+  var CAM_PORT = 8889;
+  document.getElementById("cam").src =
+    location.protocol + "//" + location.hostname + ":" + CAM_PORT + "/cam";
 
   // ── Inicializa ────────────────────────────────────────────────────────────
   connect();

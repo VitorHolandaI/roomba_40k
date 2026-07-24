@@ -14,6 +14,7 @@ Abra:  http://<ip-do-pi>:8081/   (ou embutido no app em /static via <img>)
 
 import io
 import os
+import socket
 import socketserver
 from http import server
 from threading import Condition
@@ -25,6 +26,10 @@ from picamera2.outputs import FileOutput
 WIDTH = int(os.environ.get("CAM_WIDTH", "640"))
 HEIGHT = int(os.environ.get("CAM_HEIGHT", "480"))
 PORT = int(os.environ.get("CAM_PORT", "8081"))
+FPS = int(os.environ.get("CAM_FPS", "15"))
+# Qualidade JPEG: menor = quadro menor = menos tempo no wifi = menos delay.
+# 50-70 é bom p/ o Pi 3 no wifi; suba se quiser mais nitidez e a rede aguentar.
+QUALITY = int(os.environ.get("CAM_QUALITY", "60"))
 BOUNDARY = "FRAME"
 
 
@@ -44,6 +49,9 @@ class LatestFrame(io.BufferedIOBase):
 
 class MjpegHandler(server.BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802 (nome exigido pelo BaseHTTPRequestHandler)
+        # Desliga o Nagle: manda cada quadro na hora em vez de agrupar,
+        # cortando dezenas de ms de delay por frame.
+        self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.send_response(200)
         self.send_header("Age", "0")
         self.send_header("Cache-Control", "no-cache, private")
@@ -80,10 +88,17 @@ class ThreadingServer(socketserver.ThreadingMixIn, server.HTTPServer):
 
 def main() -> None:
     picam2 = Picamera2()
-    picam2.configure(
-        picam2.create_video_configuration(main={"size": (WIDTH, HEIGHT)})
+    frame_us = int(1_000_000 / FPS)
+    config = picam2.create_video_configuration(
+        main={"size": (WIDTH, HEIGHT)},
+        # queue=False: o encoder sempre pega o quadro MAIS NOVO em vez de um
+        # enfileirado — corta latência acumulada (ver pesquisa nas fontes).
+        queue=False,
+        buffer_count=2,
+        controls={"FrameDurationLimits": (frame_us, frame_us)},
     )
-    picam2.start_recording(JpegEncoder(), FileOutput(frames))
+    picam2.configure(config)
+    picam2.start_recording(JpegEncoder(q=QUALITY), FileOutput(frames))
     print(f"[csi] MJPEG {WIDTH}x{HEIGHT} -> http://0.0.0.0:{PORT}/")
     try:
         ThreadingServer(("0.0.0.0", PORT), MjpegHandler).serve_forever()

@@ -31,11 +31,10 @@
     <button id="btn-claim">Assumir controle</button>
   </div>
 
-  <!-- Câmera CSI (stream MJPEG do ffmpeg em porta separada; ver
-       vision/stream_csi.sh). Fica num <img> porque o browser baixa o
-       multipart se aberto direto na URL. -->
+  <!-- Câmera CSI por WebRTC (baixa latência; ver vision/stream_webrtc.sh).
+       O iframe carrega o player pronto do mediamtx na porta 8889. -->
   <section id="cam-sec">
-    <img id="cam" alt="câmera off — rode vision/stream_csi.sh no Pi">
+    <iframe id="cam" title="câmera" allow="autoplay"></iframe>
   </section>
 
   <!-- Seletor de modo -->

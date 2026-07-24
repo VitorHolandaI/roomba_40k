@@ -1,0 +1,12 @@
+# Config mínima do mediamtx só pra servir a câmera CSI por WebRTC (baixa
+# latência, mídia UDP). O mediamtx completa o resto com os defaults dele
+# (WebRTC na porta 8889). A câmera é lida direto via libcamera pelo source
+# nativo `rpiCamera` — sem rpicam-vid nem ffmpeg; encode H.264 por HW.
+#
+# Player pronto:  http://<ip-do-pi>:8889/cam
+paths:
+  cam:
+    source: rpiCamera
+    rpiCameraWidth: 640
+    rpiCameraHeight: 480
+    rpiCameraFPS: 30
