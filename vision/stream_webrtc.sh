@@ -20,8 +20,8 @@ REPO="bluenviron/mediamtx"
 
 if [ ! -x "$BIN" ]; then
   mkdir -p "$DIR/mediamtx_bin"
-  # Pi 3/4/5 em 64-bit = arm64v8. (Troque p/ armv7 se for OS 32-bit.)
-  arch="linux_arm64v8"
+  # Pi 3/4/5 em 64-bit = arm64. (Troque p/ armv7 se for OS 32-bit.)
+  arch="linux_arm64"
   echo "[webrtc] baixando mediamtx ($arch)..."
   # Pega a tag pelo redirect do github.com (a api.github.com limita 60/h sem
   # token e vinha vazia); daí monta a URL do asset.
