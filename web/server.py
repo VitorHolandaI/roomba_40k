@@ -9,7 +9,7 @@ from aiohttp import web
 from config import BUMP_AUDIO_DIR, BUMP_AUDIO_ALSA_DEV
 from media.bump_audio import BumpAudioPlayer
 from media.music import MusicPlayer
-from web.broadcast import battery_broadcaster, broadcast_music
+from web.broadcast import battery_broadcaster, bump_broadcaster, broadcast_music
 from web.control_thread import ControlThread
 from web.registry import WebRegistry
 from web.shared_state import SharedState
@@ -63,6 +63,9 @@ async def on_startup(app: web.Application) -> None:
     app["broadcaster"] = asyncio.create_task(
         battery_broadcaster(registry, app["state"])
     )
+    app["bump_broadcaster"] = asyncio.create_task(
+        bump_broadcaster(registry, app["state"])
+    )
 
     # The player is registered after the loop is known so callbacks can safely
     # fan out song-state updates to connected clients.
@@ -89,13 +92,14 @@ async def on_cleanup(app: web.Application) -> None:
             pass
 
     # Stop background work before tearing down the thread-backed controller.
-    task = app.get("broadcaster")
-    if task:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+    for key in ("broadcaster", "bump_broadcaster"):
+        task = app.get(key)
+        if task:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
     ctrl = app.get("control")
     if ctrl:

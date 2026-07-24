@@ -206,6 +206,7 @@ async def handle_ws(request: web.Request) -> web.WebSocketResponse:
         await ws.send_json(state.get_battery())
         await ws.send_json({"type": "auto", "on": state.get_auto()})
         await ws.send_json({"type": "clean_motors", "on": state.get_clean_motors()})
+        await ws.send_json(state.get_bumps())
         await ws.send_json({"type": "roomba_songs", "songs": song_titles()})
         if registry.player is not None:
             await ws.send_json(registry.player.state())

@@ -74,15 +74,22 @@ class ControlThread(threading.Thread):
         self._shutdown()
 
     def _poll_bump_audio(self) -> None:
-        """Play a funny sound on the rising edge of a bump (manual or auto).
+        """Read bumps once: publish L/R state for the UI and fire the sound gag.
 
-        Runs in both modes so the gag fires even while driving by hand; the
+        Runs in both modes so the gag/indicator work while driving by hand; the
         auto-pilot's own sensor read stays separate to keep its logic intact.
         """
-        if self._effects is None:
-            return
-        if self._bump_watch.bumped(self.bot.get_sensors()):
+        sensors = self.bot.get_sensors()
+        self._publish_bumps(sensors)
+        if self._effects is not None and self._bump_watch.bumped(sensors):
             self._effects.trigger()
+
+    def _publish_bumps(self, sensors: object) -> None:
+        bumps = getattr(sensors, "bumps_wheeldrops", None)
+        if bumps is None:
+            self.state.set_bumps(False, False)
+            return
+        self.state.set_bumps(bool(bumps.bump_left), bool(bumps.bump_right))
 
     def _play_requested_song(self) -> None:
         """Play a songbook melody on the robot's piezo when the UI asks.

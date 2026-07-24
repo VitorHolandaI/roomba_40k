@@ -51,6 +51,22 @@ async def battery_broadcaster(registry: WebRegistry, state: SharedState) -> None
         pass
 
 
+async def bump_broadcaster(registry: WebRegistry, state: SharedState) -> None:
+    """Push bump L/R to clients ~8 Hz, but only when it changed (low traffic)."""
+    last: dict[str, object] = {}
+    try:
+        while True:
+            await asyncio.sleep(0.12)
+            if not registry.clients:
+                continue
+            bumps = state.get_bumps()
+            if bumps != last:
+                last = bumps
+                await _send_json_to_all(registry.clients, bumps)
+    except asyncio.CancelledError:
+        pass
+
+
 async def _send_json_to_all(
     clients: Set[web.WebSocketResponse],
     payload: dict,

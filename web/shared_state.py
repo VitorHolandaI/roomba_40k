@@ -23,6 +23,8 @@ class SharedState:
         self._speed = 150
         self._clean_motors_on = False
         self._battery: Optional[BatteryInfo] = None
+        self._bump_left = False
+        self._bump_right = False
 
     # -- web layer writes -------------------------------------------------------
 
@@ -105,6 +107,19 @@ class SharedState:
             idx = self._song_request
             self._song_request = None
             return idx
+
+    def set_bumps(self, left: bool, right: bool) -> None:
+        with self._lock:
+            self._bump_left = bool(left)
+            self._bump_right = bool(right)
+
+    def get_bumps(self) -> dict[str, object]:
+        with self._lock:
+            return {
+                "type": "bump",
+                "left": self._bump_left,
+                "right": self._bump_right,
+            }
 
     def set_battery(self, info: Optional[BatteryInfo]) -> None:
         with self._lock:

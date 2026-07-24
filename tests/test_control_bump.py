@@ -70,3 +70,19 @@ def test_missing_effects_is_safe() -> None:
     control = _control(bot, None)
 
     control._poll_bump_audio()  # must not raise
+
+
+def test_bump_state_published_to_shared_state() -> None:
+    control = _control(_SequenceBot([_FakeSensors(True, False)]), None)
+
+    control._poll_bump_audio()
+
+    assert control.state.get_bumps() == {"type": "bump", "left": True, "right": False}
+
+
+def test_no_sensors_publishes_off() -> None:
+    control = _control(_SequenceBot([None]), None)
+
+    control._poll_bump_audio()
+
+    assert control.state.get_bumps()["left"] is False

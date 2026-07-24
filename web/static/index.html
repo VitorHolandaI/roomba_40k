@@ -23,6 +23,11 @@
       </div>
       <span id="caveira" class="caveira hidden">💀 -- cm</span>
     </div>
+    <!-- Sensores de toque (bump) esquerdo/direito: acendem ao encostar. -->
+    <div class="bumps">
+      <span id="bump-l" class="bump">◐ E</span>
+      <span id="bump-r" class="bump">D ◑</span>
+    </div>
   </section>
 
   <!-- Banner de papel: motorista x espectador -->
@@ -41,6 +46,7 @@
   <nav id="modes">
     <button class="mode-btn active" data-mode="dpad">D-Pad</button>
     <button class="mode-btn" data-mode="joy">Joystick</button>
+    <button class="mode-btn" data-mode="key">⌨ Teclado</button>
   </nav>
 
   <!-- Modo D-PAD -->
@@ -64,6 +70,19 @@
       <div id="joy-stick"></div>
     </div>
     <p class="hint">Arraste para dirigir</p>
+  </section>
+
+  <!-- Modo TECLADO -->
+  <section id="key-mode" class="control-mode hidden">
+    <div class="key-legend">
+      <div class="key-row"><kbd>W</kbd> / <kbd>↑</kbd> frente</div>
+      <div class="key-row">
+        <kbd>A</kbd> / <kbd>←</kbd> esquerda &nbsp;·&nbsp;
+        <kbd>D</kbd> / <kbd>→</kbd> direita
+      </div>
+      <div class="key-row"><kbd>S</kbd> / <kbd>↓</kbd> ré</div>
+    </div>
+    <p class="hint">Segure as teclas para dirigir (combine p/ curvas)</p>
   </section>
 
   <!-- Player de música (som sai no alto-falante do robô) -->

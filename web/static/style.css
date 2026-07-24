@@ -203,6 +203,20 @@ body.spectator footer { opacity: .35; pointer-events: none; }
 }
 #music-list li.cur { background: var(--panel-hi); color: var(--text); font-weight: 600; }
 
+.bumps { display: flex; gap: .5rem; justify-content: center; margin-top: .4rem; }
+.bump {
+  padding: .2rem .6rem; border-radius: 6px; font-size: .8rem; font-weight: 600;
+  background: var(--panel-hi); color: var(--muted); transition: none;
+}
+.bump.on { background: #e33; color: #fff; }
+
+.key-legend { display: grid; gap: .4rem; justify-items: center; padding: .5rem; }
+.key-row { color: var(--muted); font-size: .95rem; }
+kbd {
+  background: var(--panel-hi); color: var(--text); border-radius: 4px;
+  padding: .1rem .4rem; font-family: monospace; font-size: .9rem;
+}
+
 #cam-sec { margin: .5rem .75rem; text-align: center; }
 #cam {
   width: 100%; max-width: 480px; border-radius: 10px;

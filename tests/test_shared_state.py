@@ -24,3 +24,12 @@ def test_dock_request_is_single_use_and_stops_robot() -> None:
     assert state.snapshot_target()[:2] == (0, 0)
     assert state.take_dock_request() is True
     assert state.take_dock_request() is False
+
+
+def test_bumps_default_off_and_roundtrip() -> None:
+    state = SharedState()
+    assert state.get_bumps() == {"type": "bump", "left": False, "right": False}
+
+    state.set_bumps(True, False)
+
+    assert state.get_bumps() == {"type": "bump", "left": True, "right": False}

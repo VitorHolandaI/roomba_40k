@@ -56,6 +56,7 @@
       else if (data.type === "auto") updateAuto(data.on);
       else if (data.type === "clean_motors") updateCleanMotors(data.on);
       else if (data.type === "caveira") updateCaveira(data);
+      else if (data.type === "bump") updateBump(data);
       else if (data.type === "roomba_songs") updateRoombaSongs(data.songs);
     };
   }
@@ -139,8 +140,9 @@
   }, SEND_INTERVAL);
 
   // ── Seletor de modo ───────────────────────────────────────────────────────
-  var dpadMode = document.getElementById("dpad-mode");
-  var joyMode = document.getElementById("joy-mode");
+  // Cada botão .mode-btn (data-mode=X) mostra a section #X-mode e esconde as
+  // outras. Genérico p/ dpad / joy / key.
+  var MODE_SECTIONS = ["dpad", "joy", "key"];
   document.querySelectorAll(".mode-btn").forEach(function (btn) {
     btn.addEventListener("click", function () {
       document.querySelectorAll(".mode-btn").forEach(function (b) {
@@ -148,14 +150,46 @@
       });
       btn.classList.add("active");
       stopDrive();
-      if (btn.dataset.mode === "dpad") {
-        dpadMode.classList.remove("hidden");
-        joyMode.classList.add("hidden");
-      } else {
-        joyMode.classList.remove("hidden");
-        dpadMode.classList.add("hidden");
-      }
+      MODE_SECTIONS.forEach(function (m) {
+        var sec = document.getElementById(m + "-mode");
+        sec.classList.toggle("hidden", m !== btn.dataset.mode);
+      });
     });
+  });
+
+  // ── Modo TECLADO (WASD + setas) ───────────────────────────────────────────
+  // Mistura frente/ré + curva a partir das teclas seguradas (permite curvas
+  // ao combinar, tipo joystick). Só dirige quando é o motorista.
+  var pressed = {};
+  var KEY_DIR = {
+    w: "fwd", ArrowUp: "fwd", s: "back", ArrowDown: "back",
+    a: "leftk", ArrowLeft: "leftk", d: "rightk", ArrowRight: "rightk",
+  };
+
+  function keyboardDrive() {
+    var fwd = (pressed.fwd ? 1 : 0) - (pressed.back ? 1 : 0);
+    // Sinais casam com o dpad: A/← = [vel,-vel], D/→ = [-vel,vel].
+    var turn = (pressed.rightk ? 1 : 0) - (pressed.leftk ? 1 : 0);
+    if (fwd === 0 && turn === 0) { stopDrive(); return; }
+    var left = (fwd - turn) * vel;
+    var right = (fwd + turn) * vel;
+    var m = Math.max(Math.abs(left), Math.abs(right), vel);
+    // Normaliza p/ não estourar vel ao somar frente+curva.
+    setDrive(left / m * vel, right / m * vel);
+  }
+
+  window.addEventListener("keydown", function (e) {
+    var dir = KEY_DIR[e.key];
+    if (!dir || e.repeat) return;
+    e.preventDefault();
+    pressed[dir] = true;
+    keyboardDrive();
+  });
+  window.addEventListener("keyup", function (e) {
+    var dir = KEY_DIR[e.key];
+    if (!dir) return;
+    pressed[dir] = false;
+    keyboardDrive();
   });
 
   // ── Modo D-PAD ────────────────────────────────────────────────────────────
@@ -333,6 +367,14 @@
     if (!isDriver) return;
     send({ type: "auto", on: !autoOn });
   });
+
+  // ── Sensores de toque (bump) ──────────────────────────────────────────────
+  var bumpL = document.getElementById("bump-l");
+  var bumpR = document.getElementById("bump-r");
+  function updateBump(b) {
+    bumpL.classList.toggle("on", !!b.left);
+    bumpR.classList.toggle("on", !!b.right);
+  }
 
   // ── Sensor da caveira (clearance frontal) ─────────────────────────────────
   var caveiraEl = document.getElementById("caveira");
