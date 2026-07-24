@@ -23,13 +23,17 @@ if [ ! -x "$BIN" ]; then
   # Pi 3/4/5 em 64-bit = arm64v8. (Troque p/ armv7 se for OS 32-bit.)
   arch="linux_arm64v8"
   echo "[webrtc] baixando mediamtx ($arch)..."
-  url="$(curl -sL "https://api.github.com/repos/$REPO/releases/latest" \
-    | grep -o "https://[^\"]*${arch}\.tar\.gz" | head -1)"
-  if [ -z "$url" ]; then
-    echo "[webrtc] ERRO: não achei o release $arch no GitHub." >&2
+  # Pega a tag pelo redirect do github.com (a api.github.com limita 60/h sem
+  # token e vinha vazia); daí monta a URL do asset.
+  tag="$(curl -sI "https://github.com/$REPO/releases/latest" \
+    | grep -i '^location:' | grep -o 'v[0-9][^[:space:]]*' | tr -d '\r')"
+  if [ -z "$tag" ]; then
+    echo "[webrtc] ERRO: não consegui achar a versão mais nova no GitHub." >&2
     exit 1
   fi
-  curl -sL "$url" | tar -xz -C "$DIR/mediamtx_bin" mediamtx
+  url="https://github.com/$REPO/releases/download/$tag/mediamtx_${tag}_${arch}.tar.gz"
+  echo "[webrtc] $url"
+  curl -fSL "$url" | tar -xz -C "$DIR/mediamtx_bin" mediamtx
   echo "[webrtc] mediamtx instalado em $BIN"
 fi
 
