@@ -189,3 +189,31 @@ and supervise ustreamer* and embed the feed into the main Roomba web app
 
 **Division of labor that works:** Python for Roomba control/logic,
 ustreamer (C) for the video pixels.
+
+---
+
+## 7. Current CSI stream: low-latency WebRTC on flaky Wi-Fi
+
+The current camera is the CSI ov5647 and is served directly by MediaMTX, not
+the old USB-camera pipeline described above. `vision/mediamtx.yml` uses H.264
+hardware encoding at 320x240, 10 fps, 400 kbps, with an IDR every second.
+
+For remote driving, stale video is more dangerous than a visible skip. The
+global `writeQueueSize` is therefore 8 instead of MediaMTX's default 512. For
+WebRTC readers the queue contains video units, so at 10 fps this limits the
+application backlog to roughly 0.8 seconds. When the link cannot keep up,
+MediaMTX intentionally drops new frames; the next one-second IDR lets the
+browser recover after bandwidth returns.
+
+Do not enable `webrtcLocalTCPAddress` for normal driving. MediaMTX documents
+that TCP can build progressive delay under congestion. HLS/MJPEG can be used
+for observation, but not as the default driving view because they buffer.
+
+Test the physical link before lowering quality again:
+
+1. Run the same stream through the building Wi-Fi and note warnings and delay.
+2. Enable `sudo ./ap_mode.sh on`, join the robot AP, and repeat at
+   `http://10.42.0.1:8080`.
+3. If the direct AP is clean, routing/interference outside the robot is the
+   bottleneck. If it also fails, improve the Pi Wi-Fi/PSU; software cannot make
+   sustained throughput below 400 kbps carry this stream.

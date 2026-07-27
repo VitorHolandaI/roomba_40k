@@ -28,10 +28,11 @@ pip install -r requirements.txt
 ## Como rodar
 
 ```bash
-python web/server.py
+./run.sh
 ```
 
-Depois abra `http://<ip-do-pi>:8080` no navegador.
+O script inicia o servidor web e o stream WebRTC juntos. Depois abra
+`http://<ip-do-pi>:8080` no navegador; `Ctrl+C` encerra os dois processos.
 
 ## Variáveis de ambiente
 

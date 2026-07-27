@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sobe o controle web do Roomba. Cria venv e instala deps na 1ª vez.
+# Sobe o controle web e o stream WebRTC. Cria venv e instala deps na 1ª vez.
 #
 # Uso:
 #   ./run.sh                     # porta serial/http padrão
@@ -43,5 +43,19 @@ if ! command -v mpg123 >/dev/null; then
   echo "       Instale com: sudo apt install mpg123   (Debian/Raspberry Pi OS)"
 fi
 
-echo "[run] iniciando servidor..."
-exec python -m web.server
+echo "[run] iniciando stream e servidor..."
+
+STREAM_PID=""
+WEB_PID=""
+trap 'trap - EXIT INT TERM; kill "$WEB_PID" "$STREAM_PID" 2>/dev/null || true; wait "$WEB_PID" "$STREAM_PID" 2>/dev/null || true' EXIT INT TERM
+
+./vision/stream_webrtc.sh &
+STREAM_PID=$!
+python -m web.server &
+WEB_PID=$!
+
+set +e
+wait -n "$STREAM_PID" "$WEB_PID"
+STATUS=$?
+set -e
+exit "$STATUS"
