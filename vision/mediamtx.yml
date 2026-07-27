@@ -11,9 +11,10 @@ paths:
     # inteiro, crop 2592x1944) pra enxergar o MÁXIMO que o lens dá. Sem isso o
     # libcamera pode pegar um modo cortado (zoom) e você vê pouco. A saída é
     # escalada pra 640x480 — FOV largo NÃO custa banda (banda = saída+bitrate).
-    rpiCameraMode: "1296:972:10:P"
-    # MÍNIMO: o wifi do Pi 3 não aguenta mais que isso sem "reader too slow".
-    # FOV segue máximo (mode full-sensor não custa banda); só a saída é leve.
+    # SEM rpiCameraMode de propósito: forçar 1296x972 fazia o ISP ler o sensor
+    # inteiro e reduzir a cada frame (pesa memória/ISP no Pi 3). Deixando o
+    # libcamera escolher, ele pega o modo 640x480 (crop 2560x1920 = quase o
+    # mesmo FOV) com bem menos trabalho. FOV ~igual, performance melhor.
     rpiCameraWidth: 320
     rpiCameraHeight: 240
     rpiCameraFPS: 10
