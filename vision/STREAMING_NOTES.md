@@ -199,11 +199,12 @@ the old USB-camera pipeline described above. `vision/mediamtx.yml` uses H.264
 hardware encoding at 320x240, 10 fps, 400 kbps, with an IDR every second.
 
 For remote driving, stale video is more dangerous than a visible skip. The
-global `writeQueueSize` is therefore 8 instead of MediaMTX's default 512. For
-WebRTC readers the queue contains video units, so at 10 fps this limits the
-application backlog to roughly 0.8 seconds. When the link cannot keep up,
-MediaMTX intentionally drops new frames; the next one-second IDR lets the
-browser recover after bandwidth returns.
+global `writeQueueSize` is therefore 64 instead of MediaMTX's default 512.
+MediaMTX queues each source RTP fragment, not each displayed frame: a value of
+8 held only about 11 KB and discarded 30-39 fragments during every normal IDR
+burst. A value of 64 absorbs those keyframes while keeping the queue bounded.
+When the link itself cannot keep up, MediaMTX still drops new fragments; the
+next one-second IDR lets the browser recover after bandwidth returns.
 
 Do not enable `webrtcLocalTCPAddress` for normal driving. MediaMTX documents
 that TCP can build progressive delay under congestion. HLS/MJPEG can be used

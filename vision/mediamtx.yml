@@ -4,10 +4,10 @@
 # nativo `rpiCamera` — sem rpicam-vid nem ffmpeg; encode H.264 por HW.
 #
 # Player pronto:  http://<ip-do-pi>:8889/cam
-# A fila padrão guarda 512 unidades; no WebRTC isso pode virar dezenas de
-# segundos de vídeo velho a 10 fps. O robô prefere descartar durante a queda e
-# voltar ao tempo real assim que o link recupera. O valor deve ser potência de 2.
-writeQueueSize: 8
+# Cada quadro H.264 chega em vários fragmentos RTP. Uma fila de 8 estourava em
+# todo IDR; 64 absorve a rajada sem voltar ao buffer padrão de 512 unidades.
+# O valor deve ser potência de 2.
+writeQueueSize: 64
 
 paths:
   cam:
