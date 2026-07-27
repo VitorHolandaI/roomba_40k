@@ -196,7 +196,8 @@ ustreamer (C) for the video pixels.
 
 The current camera is the CSI ov5647 and is served directly by MediaMTX, not
 the old USB-camera pipeline described above. `vision/mediamtx.yml` uses H.264
-hardware encoding at 320x240, 10 fps, 400 kbps, with an IDR every second.
+hardware encoding with a minimum test profile: 160x120, 8 fps, 200 kbps, with
+an IDR every second.
 
 For remote driving, stale video is more dangerous than a visible skip. The
 global `writeQueueSize` is therefore 64 instead of MediaMTX's default 512.
@@ -217,4 +218,4 @@ Test the physical link before lowering quality again:
    `http://10.42.0.1:8080`.
 3. If the direct AP is clean, routing/interference outside the robot is the
    bottleneck. If it also fails, improve the Pi Wi-Fi/PSU; software cannot make
-   sustained throughput below 400 kbps carry this stream.
+   sustained throughput below 200 kbps carry this stream.
