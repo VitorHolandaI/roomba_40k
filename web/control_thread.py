@@ -35,6 +35,7 @@ class ControlThread(threading.Thread):
         self._running = threading.Event()
         self._running.set()
         self._sent_clean = False
+        self._cliff_active = False
 
     def run(self) -> None:
         self.bot.connect()
@@ -80,23 +81,33 @@ class ControlThread(threading.Thread):
         auto-pilot's own sensor read stays separate to keep its logic intact.
         """
         sensors = self.bot.get_sensors()
+        self._sync_robot_mode(sensors)
         self._publish_bumps(sensors)
         if self._effects is not None and self._bump_watch.bumped(sensors):
             self._effects.trigger()
 
+    def _sync_robot_mode(self, sensors: object) -> None:
+        """Notice safety-triggered OI drops so the next drive restores Safe."""
+        mode = getattr(sensors, "open_interface_mode", None)
+        if isinstance(mode, int) and not isinstance(mode, bool) and mode <= 1:
+            self.bot.set_passive()
+
     def _publish_bumps(self, sensors: object) -> None:
         bumps = getattr(sensors, "bumps_wheeldrops", None)
         if bumps is None:
+            self._cliff_active = False
             self.state.set_bumps(False, False)
             self.state.set_cliffs(False, False, False, False)
             return
         self.state.set_bumps(bool(bumps.bump_left), bool(bumps.bump_right))
-        self.state.set_cliffs(
+        cliffs = (
             bool(getattr(sensors, "cliff_left", False)),
             bool(getattr(sensors, "cliff_front_left", False)),
             bool(getattr(sensors, "cliff_front_right", False)),
             bool(getattr(sensors, "cliff_right", False)),
         )
+        self._cliff_active = any(cliffs)
+        self.state.set_cliffs(*cliffs)
 
     def _play_requested_song(self) -> None:
         """Play a songbook melody on the robot's piezo when the UI asks.
@@ -120,6 +131,9 @@ class ControlThread(threading.Thread):
         if is_drive_stale(last_update, now, timeout=TIMEOUT):
             left = 0
             right = 0
+        if self._cliff_active and (left > 0 or right > 0):
+            left = 0
+            right = 0
         self.bot.drive(left, right)
 
     def _auto_step(self, now: float) -> None:
@@ -127,6 +141,7 @@ class ControlThread(threading.Thread):
         decision = self.auto.decide(sensors, self.state.get_speed(), now)
         if decision.collision:
             self.bot.set_passive()
+            return
         self.bot.drive(decision.left, decision.right)
 
     def stop(self) -> None:

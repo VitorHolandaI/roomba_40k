@@ -82,8 +82,10 @@ class RoombaInterface:
             return None
 
     def set_passive(self) -> None:
-        """Mark that the robot has dropped into Passive mode."""
+        """Mark Passive mode and force the next drive command to be resent."""
         self.passivo = True
+        self._sent_left = None
+        self._sent_right = None
 
     # -- movement --------------------------------------------------------------
 
