@@ -250,3 +250,55 @@ kbd {
 /* Sensor da caveira */
 .caveira { margin-left: auto; font-size: .9rem; color: var(--muted); font-weight: 600; }
 .caveira.blocked { color: var(--red); }
+
+/* Mobile driving view: keep camera and steering visible in the same viewport. */
+@media (max-width: 600px) {
+  body {
+    max-width: none;
+    padding: 6px;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  body > header,
+  body > section,
+  body > nav,
+  body > #role-banner { margin-bottom: 6px; }
+
+  header { padding: 0 4px; }
+  h1 { font-size: 1rem; }
+
+  #hud {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 8px;
+    padding: 6px 8px;
+  }
+  .bat { grid-row: 1 / span 2; gap: 6px; }
+  .bat-pct { font-size: 1.25rem; }
+  .bat-meta { display: none; }
+  .bumps { justify-content: flex-end; gap: 3px; margin-top: 0; }
+  .bump { padding: 2px 5px; font-size: .68rem; }
+
+  #cam-sec { margin: 0; }
+  #cam { width: min(100%, 280px); border-radius: 8px; }
+
+  #modes { gap: 4px; }
+  .mode-btn { padding: 7px 4px; font-size: .8rem; border-radius: 8px; }
+  .control-mode { gap: 8px; }
+  .dpad {
+    grid-template-columns: repeat(3, min(56px, 17vw));
+    grid-template-rows: repeat(3, min(56px, 17vw));
+    gap: 5px;
+  }
+  .dbtn { border-radius: 10px; font-size: 1.25rem; }
+  .speed { max-width: 240px; }
+  #vel-slider { margin-top: 3px; }
+
+  footer {
+    gap: 5px;
+    max-width: none;
+    padding: 6px;
+    padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  }
+  .big { padding: 11px 3px; border-radius: 9px; font-size: .78rem; }
+}
