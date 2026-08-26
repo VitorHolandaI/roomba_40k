@@ -3,6 +3,7 @@
 set -euo pipefail
 
 TLS_DIR="${ROOMBA_TLS_DIR:-$HOME/.config/roomba_40k/tls}"
+CA_DOWNLOAD_PORT="${ROOMBA_CA_PORT:-8090}"
 PI_IP="${1:-}"
 
 if [ -z "$PI_IP" ]; then
@@ -16,6 +17,10 @@ fi
 
 if ! command -v openssl >/dev/null; then
   echo "[https] ERRO: 'openssl' não encontrado." >&2
+  exit 1
+fi
+if ! command -v python3 >/dev/null || ! command -v timeout >/dev/null; then
+  echo "[https] ERRO: 'python3' e 'timeout' são necessários para o link da CA." >&2
   exit 1
 fi
 if [ -z "$PI_IP" ]; then
@@ -47,6 +52,26 @@ openssl x509 -req -sha256 -days 825 \
 rm -f "$TLS_DIR/server.csr"
 chmod 600 "$TLS_DIR/ca.key" "$TLS_DIR/server.key"
 
+PUBLIC_DIR="$TLS_DIR/public"
+mkdir -p "$PUBLIC_DIR"
+cp "$TLS_DIR/ca.crt" "$PUBLIC_DIR/roomba-ca.cer"
+chmod 644 "$PUBLIC_DIR/roomba-ca.cer"
+
+# Expõe somente a CA pública por cinco minutos. As chaves ficam fora da pasta
+# servida; o processo se encerra sozinho mesmo se o usuário esquecer dele.
+nohup timeout 300 python3 -m http.server "$CA_DOWNLOAD_PORT" \
+  --bind 0.0.0.0 --directory "$PUBLIC_DIR" \
+  > "$TLS_DIR/ca-download.log" 2>&1 &
+CA_SERVER_PID=$!
+echo "$CA_SERVER_PID" > "$TLS_DIR/ca-download.pid"
+sleep 0.2
+
 echo "[https] certificado criado para $PI_IP"
-echo "[https] instale SOMENTE esta CA no celular: $TLS_DIR/ca.crt"
-echo "[https] depois rode ./run.sh e abra https://$PI_IP:8080"
+if kill -0 "$CA_SERVER_PID" 2>/dev/null; then
+  echo "[https] no celular, abra: http://$PI_IP:$CA_DOWNLOAD_PORT/roomba-ca.cer"
+  echo "[https] o link expira sozinho em 5 minutos"
+else
+  echo "[https] ERRO: link da CA não abriu; veja $TLS_DIR/ca-download.log" >&2
+  exit 1
+fi
+echo "[https] o controle abrirá em https://$PI_IP:8080"

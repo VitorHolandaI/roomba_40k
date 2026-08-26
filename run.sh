@@ -20,6 +20,11 @@ if { [ -n "${ROOMBA_TLS_CERT:-}" ] && [ -z "${ROOMBA_TLS_KEY:-}" ]; } || \
   exit 1
 fi
 if [ -z "${ROOMBA_TLS_CERT:-}" ] && [ -z "${ROOMBA_TLS_KEY:-}" ] && \
+   { [ ! -f "$DEFAULT_TLS_DIR/server.crt" ] || [ ! -f "$DEFAULT_TLS_DIR/server.key" ]; }; then
+  echo "[run] primeiro acesso: configurando HTTPS e link da CA..."
+  ./setup_https.sh
+fi
+if [ -z "${ROOMBA_TLS_CERT:-}" ] && [ -z "${ROOMBA_TLS_KEY:-}" ] && \
    [ -f "$DEFAULT_TLS_DIR/server.crt" ] && [ -f "$DEFAULT_TLS_DIR/server.key" ]; then
   export ROOMBA_TLS_CERT="$DEFAULT_TLS_DIR/server.crt"
   export ROOMBA_TLS_KEY="$DEFAULT_TLS_DIR/server.key"

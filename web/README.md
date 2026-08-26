@@ -36,20 +36,25 @@ O script inicia o servidor web e o stream WebRTC juntos. Depois abra
 
 ## HTTPS e microfone no celular
 
-O navegador só libera o microfone em HTTPS. No Raspberry Pi, gere uma CA local
-e um certificado para o IP atual:
+O navegador só libera o microfone em HTTPS. Na primeira execução, `./run.sh`
+chama `setup_https.sh` automaticamente, gera a CA/certificado para o IP atual e
+imprime o link de instalação no celular:
 
 ```bash
-./setup_https.sh
+./run.sh
 ```
 
 Se o Pi tiver várias interfaces e detectar o endereço errado, passe o IP da
 rede usada pelo celular: `./setup_https.sh 192.168.1.50`.
 
-Instale **somente** o arquivo `~/.config/roomba_40k/tls/ca.crt` como certificado
-de CA no celular. Nunca copie `ca.key` ou `server.key`. Depois, `./run.sh`
-detecta o certificado automaticamente e sobe o controle em
-`https://<ip-do-pi>:8080` e a câmera em `https://<ip-do-pi>:8889`.
+O script imprime um link como
+`http://192.168.1.50:8090/roomba-ca.cer`, disponível por cinco minutos. Abra o
+link no celular e confirme a instalação como certificado de CA. O servidor
+temporário expõe somente a CA pública; nunca copie `ca.key` ou `server.key`.
+
+O mesmo `run.sh` continua e sobe o controle em `https://<ip-do-pi>:8080` e a
+câmera em `https://<ip-do-pi>:8889`. Nas próximas execuções, ele reutiliza o
+certificado sem repetir o setup.
 
 Se o IP do Pi mudar, rode `./setup_https.sh` novamente para emitir um
 certificado com o novo IP.
@@ -63,6 +68,7 @@ certificado com o novo IP.
 | `VOICE_ALSA_DEV`    | `plughw:1,0`     | Saída ALSA do interfone          |
 | `ROOMBA_TLS_CERT`   | detecção local   | Certificado HTTPS opcional       |
 | `ROOMBA_TLS_KEY`    | detecção local   | Chave HTTPS opcional             |
+| `ROOMBA_CA_PORT`    | `8090`           | Link temporário para baixar a CA |
 
 Exemplo:
 
