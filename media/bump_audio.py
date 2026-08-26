@@ -10,6 +10,7 @@ import os
 import glob
 import shutil
 import subprocess
+import threading
 from typing import List, Optional
 
 # Extensões varridas na pasta de efeitos.
@@ -29,6 +30,8 @@ class BumpAudioPlayer:
         self.audio_dir = os.path.expanduser(audio_dir)
         self.alsa_dev = alsa_dev
         self.available = shutil.which("mpg123") is not None
+        self.suspended = False
+        self._lock = threading.Lock()
         self._proc: Optional[subprocess.Popen] = None
         self.playlist: List[str] = self._scan()
         if self.available and not self.playlist:
@@ -46,13 +49,16 @@ class BumpAudioPlayer:
 
     def is_playing(self) -> bool:
         """True enquanto a sequência atual ainda não terminou."""
-        return self._proc is not None and self._proc.poll() is None
+        with self._lock:
+            return self._proc is not None and self._proc.poll() is None
 
     def trigger(self) -> None:
         """Toca a pasta inteira; ignora se a sequência anterior ainda toca."""
-        if not self.available or not self.playlist or self.is_playing():
-            return
-        self._proc = self._spawn(self.playlist)
+        with self._lock:
+            playing = self._proc is not None and self._proc.poll() is None
+            if self.suspended or not self.available or not self.playlist or playing:
+                return
+            self._proc = self._spawn(self.playlist)
 
     def _spawn(self, files: List[str]) -> Optional[subprocess.Popen]:
         """Sobe um mpg123 que toca todos os arquivos e sai."""
@@ -73,8 +79,32 @@ class BumpAudioPlayer:
 
     def stop(self) -> None:
         """Corta a sequência em andamento (ex.: no shutdown do servidor)."""
-        if self._proc is not None and self._proc.poll() is None:
+        with self._lock:
+            process = self._proc
+            self._proc = None
+        if process is not None and process.poll() is None:
             try:
-                self._proc.terminate()
+                process.terminate()
             except Exception:
                 pass
+
+    def suspend(self) -> None:
+        """Release ALSA and block bump sounds while live voice is active."""
+        with self._lock:
+            self.suspended = True
+            process = self._proc
+            self._proc = None
+        if process is not None:
+            if process.poll() is None:
+                process.terminate()
+            try:
+                process.wait(timeout=1.0)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=1.0)
+        self._proc = None
+
+    def resume(self) -> None:
+        """Allow bump sounds again after live voice ends."""
+        with self._lock:
+            self.suspended = False

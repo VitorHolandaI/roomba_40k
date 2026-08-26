@@ -1,5 +1,6 @@
 """Bump sound-effect player tests — no audio hardware dependency."""
 
+import threading
 from pathlib import Path
 
 from pytest import MonkeyPatch
@@ -21,6 +22,10 @@ class FakeEffectProcess:
 
     def terminate(self) -> None:
         self.terminated = True
+
+    def wait(self, timeout: float) -> int:
+        self._done = True
+        return 0
 
 
 def _player_with_spawn_capture(
@@ -91,3 +96,48 @@ def test_trigger_noop_without_audio_files(
     BumpAudioPlayer(str(tmp_path / "empty"), alsa_dev="dummy").trigger()
 
     assert spawns == []
+
+
+def test_suspend_stops_effects_and_blocks_new_triggers(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    spawns: list[list[str]] = []
+    player = _player_with_spawn_capture(monkeypatch, tmp_path, spawns)
+    player.trigger()
+
+    player.suspend()
+    player.trigger()
+
+    assert player._proc is None
+    assert len(spawns) == 1
+    player.resume()
+    player.trigger()
+    assert len(spawns) == 2
+
+
+def test_suspend_waits_for_trigger_spawn_race(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    spawns: list[list[str]] = []
+    player = _player_with_spawn_capture(monkeypatch, tmp_path, spawns)
+    original_spawn = player._spawn
+    spawn_started = threading.Event()
+    release_spawn = threading.Event()
+
+    def delayed_spawn(files: list[str]):
+        spawn_started.set()
+        release_spawn.wait(timeout=1.0)
+        return original_spawn(files)
+
+    monkeypatch.setattr(player, "_spawn", delayed_spawn)
+    trigger_thread = threading.Thread(target=player.trigger)
+    trigger_thread.start()
+    assert spawn_started.wait(timeout=1.0)
+    suspend_thread = threading.Thread(target=player.suspend)
+    suspend_thread.start()
+    release_spawn.set()
+    trigger_thread.join(timeout=1.0)
+    suspend_thread.join(timeout=1.0)
+
+    assert player.suspended is True
+    assert player._proc is None

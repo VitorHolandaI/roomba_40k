@@ -1,6 +1,7 @@
 """Music player tests — no audio hardware dependency."""
 
 import importlib
+import ssl
 from pathlib import Path
 from typing import Callable
 
@@ -30,9 +31,16 @@ class FakeMusicProcess:
     def __init__(self, commands: list[bytes]) -> None:
         self.stdin = FakeMusicStdin(commands)
         self.stdout: list[bytes] = []
+        self.terminated = False
 
     def terminate(self) -> None:
-        pass
+        self.terminated = True
+
+    def wait(self, timeout: float) -> int:
+        return 0
+
+    def kill(self) -> None:
+        self.terminated = True
 
 
 class FakeMusicThread:
@@ -43,6 +51,9 @@ class FakeMusicThread:
         self.daemon = daemon
 
     def start(self) -> None:
+        pass
+
+    def join(self, timeout: float) -> None:
         pass
 
 
@@ -82,6 +93,32 @@ def test_music_player_start_loads_song_with_autoplay(
     assert any(command.startswith(b"LOAD ") for command in commands)
 
 
+def test_music_player_suspend_releases_and_restores_process(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    processes: list[FakeMusicProcess] = []
+    monkeypatch.setattr(music_module.shutil, "which", lambda _name: "/usr/bin/mpg123")
+    monkeypatch.setattr(music_module.threading, "Thread", FakeMusicThread)
+
+    def fake_popen(*_args: object, **_kwargs: object) -> FakeMusicProcess:
+        process = FakeMusicProcess([])
+        processes.append(process)
+        return process
+
+    monkeypatch.setattr(music_module.subprocess, "Popen", fake_popen)
+    player = MusicPlayer(str(tmp_path), alsa_dev="dummy")
+    player.start()
+
+    player.suspend()
+    assert processes[0].terminated is True
+    assert player.proc is None
+    player.resume()
+
+    assert len(processes) == 2
+    assert player.proc is processes[1]
+
+
 def test_server_music_autoplay_is_opt_in(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.delenv("MUSIC_AUTOPLAY", raising=False)
     assert importlib.reload(server_module).MUSIC_AUTOPLAY is False
@@ -91,3 +128,39 @@ def test_server_music_autoplay_is_opt_in(monkeypatch: MonkeyPatch) -> None:
 
     monkeypatch.delenv("MUSIC_AUTOPLAY", raising=False)
     importlib.reload(server_module)
+
+
+def test_server_tls_is_optional() -> None:
+    assert server_module.build_ssl_context(None, None) is None
+
+
+def test_server_tls_requires_certificate_and_key() -> None:
+    try:
+        server_module.build_ssl_context("server.crt", None)
+    except ValueError as exc:
+        assert "server.crt" in str(exc)
+    else:
+        raise AssertionError("expected incomplete TLS configuration to fail")
+
+
+def test_server_tls_loads_certificate_chain(monkeypatch: MonkeyPatch) -> None:
+    loaded: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        ssl.SSLContext,
+        "load_cert_chain",
+        lambda _self, cert, key: loaded.append((cert, key)),
+    )
+
+    context = server_module.build_ssl_context("server.crt", "server.key")
+
+    assert isinstance(context, ssl.SSLContext)
+    assert loaded == [("server.crt", "server.key")]
+
+
+def test_server_registers_live_voice_websocket() -> None:
+    routes = {
+        (route.method, getattr(route.resource, "canonical", None))
+        for route in server_module.build_app().router.routes()
+    }
+
+    assert ("GET", "/voice-ws") in routes

@@ -15,6 +15,7 @@ import glob
 import shutil
 import threading
 import subprocess
+from typing import Optional
 
 
 class MusicPlayer:
@@ -35,6 +36,8 @@ class MusicPlayer:
 
         self.lock = threading.Lock()
         self.proc = None
+        self.suspended = False
+        self._reader_thread = None
 
         # Playlist (caminhos absolutos) e índice da faixa atual.
         self.playlist = []
@@ -65,9 +68,9 @@ class MusicPlayer:
 
     # ── ciclo de vida do processo ─────────────────────────────────────────────
 
-    def start(self):
+    def start(self, autoplay: Optional[bool] = None):
         """Sobe o mpg123 em modo remoto e a thread leitora de stdout."""
-        if not self.available:
+        if not self.available or self.suspended:
             print("[music] AVISO: mpg123 não encontrado; player desabilitado.")
             return
         cmd = ["mpg123", "-R"]
@@ -92,23 +95,49 @@ class MusicPlayer:
         self._send("SILENCE")
         # Aplica o volume inicial.
         self._send(f"VOLUME {self.volume}")
-        t = threading.Thread(target=self._reader, daemon=True)
-        t.start()
+        self._reader_thread = threading.Thread(target=self._reader, daemon=True)
+        self._reader_thread.start()
         print(
             f"[music] mpg123 pronto | {len(self.playlist)} faixa(s) em "
             f"{self.music_dir} | saída: {self.alsa_dev or 'padrão'}"
         )
         # Toca a primeira faixa automaticamente, se pedido e houver playlist.
-        if self.autoplay and self.playlist:
+        should_autoplay = self.autoplay if autoplay is None else autoplay
+        if should_autoplay and self.playlist:
             self.play(0)
 
     def stop_proc(self):
-        if self.proc is not None:
+        process = self.proc
+        if process is not None:
             try:
                 self._send("QUIT")
-                self.proc.terminate()
+                process.terminate()
+                process.wait(timeout=1.0)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=1.0)
             except Exception:
                 pass
+        thread = self._reader_thread
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=1.0)
+        self.proc = None
+        self._reader_thread = None
+
+    def suspend(self) -> None:
+        """Stop music and release ALSA for the live voice intercom."""
+        if self.suspended:
+            return
+        self.stop()
+        self.suspended = True
+        self.stop_proc()
+
+    def resume(self) -> None:
+        """Restart the idle music process after live voice ends."""
+        if not self.suspended:
+            return
+        self.suspended = False
+        self.start(autoplay=False)
 
     def _send(self, cmd):
         """Escreve um comando ASCII no stdin do mpg123 (thread-safe)."""
@@ -138,6 +167,8 @@ class MusicPlayer:
 
     def _reader(self):
         p = self.proc
+        if p is None or p.stdout is None:
+            return
         for raw in p.stdout:
             # Saída do mpg123 é ASCII (@... linhas de status); decodifica
             # tolerante a qualquer byte estranho.
@@ -193,7 +224,7 @@ class MusicPlayer:
         self._notify()
 
     def play(self, idx=None):
-        if not self.available or not self.playlist:
+        if self.suspended or not self.available or not self.playlist:
             return
         if idx is None:
             with self.lock:
@@ -207,7 +238,7 @@ class MusicPlayer:
 
     def pause(self):
         """Alterna pausa/retomada (mpg123 PAUSE é toggle)."""
-        if not self.available:
+        if self.suspended or not self.available:
             return
         with self.lock:
             if not self.playing:
@@ -215,7 +246,7 @@ class MusicPlayer:
         self._send("PAUSE")
 
     def stop(self):
-        if not self.available:
+        if self.suspended or not self.available:
             return
         with self.lock:
             self.playing = False
@@ -225,21 +256,21 @@ class MusicPlayer:
         self._notify()
 
     def next(self):
-        if not self.available or not self.playlist:
+        if self.suspended or not self.available or not self.playlist:
             return
         with self.lock:
             nxt = (self.index + 1) % len(self.playlist)
         self._load_index(nxt)
 
     def prev(self):
-        if not self.available or not self.playlist:
+        if self.suspended or not self.available or not self.playlist:
             return
         with self.lock:
             prv = (self.index - 1) % len(self.playlist)
         self._load_index(prv)
 
     def set_volume(self, pct):
-        if not self.available:
+        if self.suspended or not self.available:
             return
         with self.lock:
             self.volume = max(0, min(100, int(pct)))
@@ -274,6 +305,7 @@ class MusicPlayer:
             return {
                 "type": "music",
                 "available": self.available,
+                "suspended": self.suspended,
                 "playing": self.playing,
                 "paused": self.paused,
                 "index": self.index,

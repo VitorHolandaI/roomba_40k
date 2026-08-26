@@ -17,6 +17,17 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 BIN="$DIR/mediamtx_bin/mediamtx"
 CFG="$DIR/mediamtx.yml"
 REPO="bluenviron/mediamtx"
+SCHEME="http"
+
+if [ -n "${ROOMBA_TLS_CERT:-}" ] && [ -n "${ROOMBA_TLS_KEY:-}" ]; then
+  export MTX_WEBRTCENCRYPTION=true
+  export MTX_WEBRTCSERVERCERT="$ROOMBA_TLS_CERT"
+  export MTX_WEBRTCSERVERKEY="$ROOMBA_TLS_KEY"
+  SCHEME="https"
+elif [ -n "${ROOMBA_TLS_CERT:-}" ] || [ -n "${ROOMBA_TLS_KEY:-}" ]; then
+  echo "[webrtc] ERRO: certificado e chave TLS devem ser definidos juntos." >&2
+  exit 1
+fi
 
 if [ ! -x "$BIN" ]; then
   mkdir -p "$DIR/mediamtx_bin"
@@ -40,11 +51,16 @@ fi
 # O mediamtx às vezes só descobre 127.0.0.1 como candidato ICE — aí clientes
 # em outra máquina dão "deadline exceeded while waiting connection". Anuncia
 # o IP real (wifi ou AP) para o WebRTC ter um candidato alcançável.
-IP="$(hostname -I | awk '{print $1}')"
+IP="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
+if [ -z "$IP" ] && command -v ip >/dev/null; then
+  IP="$(ip route get 1.1.1.1 2>/dev/null \
+    | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}' \
+    || true)"
+fi
 if [ -n "$IP" ]; then
   export MTX_WEBRTCADDITIONALHOSTS="$IP"
   echo "[webrtc] anunciando host ICE: $IP"
 fi
 
-echo "[webrtc] player: http://$IP:8889/cam"
+echo "[webrtc] player: $SCHEME://$IP:8889/cam"
 exec "$BIN" "$CFG"

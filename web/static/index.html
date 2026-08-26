@@ -49,6 +49,15 @@
     <iframe id="cam" title="câmera" allow="autoplay"></iframe>
   </section>
 
+  <!-- Interfone PCM ao vivo: o som sai no alto-falante ligado ao Pi. -->
+  <section id="live-voice">
+    <button id="voice-button" type="button">FALAR AO VIVO</button>
+    <div class="voice-copy">
+      <strong>Interfone do Roomba</strong>
+      <span id="voice-status">Toque para abrir o microfone</span>
+    </div>
+  </section>
+
   <!-- Seletor de modo -->
   <nav id="modes">
     <button class="mode-btn active" data-mode="dpad">D-Pad</button>
@@ -130,5 +139,6 @@
   </footer>
 
   <script src="/static/app.js"></script>
+  <script src="/static/live-voice.js"></script>
 </body>
 </html>
