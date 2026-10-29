@@ -119,6 +119,77 @@ def test_music_player_suspend_releases_and_restores_process(
     assert player.proc is processes[1]
 
 
+def _player_with_fake_events(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    events: list[bytes],
+) -> tuple[MusicPlayer, list[bytes]]:
+    """Two-track player whose mpg123 stdout replays `events` in order."""
+    commands: list[bytes] = []
+    for name in ("a.mp3", "b.mp3"):
+        (tmp_path / name).write_bytes(b"fake mp3")
+    monkeypatch.setattr(music_module.shutil, "which", lambda _name: "/usr/bin/mpg123")
+    player = MusicPlayer(str(tmp_path), alsa_dev="dummy")
+    fake = FakeMusicProcess(commands)
+    fake.stdout = events
+    player.proc = fake  # type: ignore[assignment]
+    return player, commands
+
+
+def _loaded_names(commands: list[bytes]) -> list[str]:
+    return [
+        Path(c.removeprefix(b"LOAD ").strip().decode()).name
+        for c in commands
+        if c.startswith(b"LOAD ")
+    ]
+
+
+def test_track_end_advances_to_next_when_load_started_from_idle(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    # mpg123 emits only "@P 2" on LOAD (no "@P 0"), then "@P 0" at the
+    # natural end. The old suppress flag swallowed that end and stalled.
+    player, commands = _player_with_fake_events(
+        monkeypatch, tmp_path, [b"@P 2\n", b"@P 0\n"]
+    )
+
+    player.play(0)
+    player._reader()
+
+    assert _loaded_names(commands) == ["a.mp3", "b.mp3"]
+
+
+def test_track_end_advances_once_when_load_also_emits_stop_event(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    # Some mpg123 builds emit "@P 0" for the replaced track before "@P 2".
+    player, commands = _player_with_fake_events(
+        monkeypatch, tmp_path, [b"@P 0\n", b"@P 2\n", b"@P 0\n"]
+    )
+
+    player.play(0)
+    player._reader()
+
+    assert _loaded_names(commands) == ["a.mp3", "b.mp3"]
+
+
+def test_stop_event_after_user_stop_does_not_advance(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    player, commands = _player_with_fake_events(
+        monkeypatch, tmp_path, [b"@P 2\n", b"@P 0\n"]
+    )
+
+    player.play(0)
+    player.stop()
+    player._reader()
+
+    assert _loaded_names(commands) == ["a.mp3"]
+
+
 def test_server_music_autoplay_is_opt_in(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.delenv("MUSIC_AUTOPLAY", raising=False)
     assert importlib.reload(server_module).MUSIC_AUTOPLAY is False

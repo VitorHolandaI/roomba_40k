@@ -46,9 +46,12 @@ class MusicPlayer:
         self.playing = False
         self.paused = False
 
-        # Suprime o auto-avanço no @P 0 disparado por LOAD/STOP (não é fim
-        # natural de faixa).
-        self._suppress_advance = False
+        # @P 0 que NÃO é fim natural de faixa. STOP sempre emite exatamente
+        # um (até parado), então é contador. LOAD só emite @P 0 em algumas
+        # versões do mpg123 (medido: v11 não emite), por isso a flag é
+        # desarmada pelo @P 2 que todo LOAD bem-sucedido emite.
+        self._stop_events_pending = 0
+        self._load_event_pending = False
 
         self.available = shutil.which("mpg123") is not None
 
@@ -184,8 +187,10 @@ class MusicPlayer:
             advance = False
             with self.lock:
                 if code == "0":
-                    if self._suppress_advance:
-                        self._suppress_advance = False
+                    if self._stop_events_pending > 0:
+                        self._stop_events_pending -= 1
+                    elif self._load_event_pending:
+                        self._load_event_pending = False
                     elif self.playing:
                         # Fim natural da faixa -> próxima (sequencial).
                         advance = True
@@ -197,6 +202,7 @@ class MusicPlayer:
                 elif code == "2":
                     self.playing = True
                     self.paused = False
+                    self._load_event_pending = False
             if advance:
                 self.next()
             else:
@@ -218,7 +224,7 @@ class MusicPlayer:
             self.index = idx
             self.playing = True
             self.paused = False
-            self._suppress_advance = True
+            self._load_event_pending = True
             path = self.playlist[idx]
         self._send_load(path)
         self._notify()
@@ -251,7 +257,7 @@ class MusicPlayer:
         with self.lock:
             self.playing = False
             self.paused = False
-            self._suppress_advance = True
+            self._stop_events_pending += 1
         self._send("STOP")
         self._notify()
 
