@@ -173,7 +173,8 @@ VOICE_ALSA_DEV=plughw:2,0 \
 ```
 
 Use `aplay -l` para listar dispositivos ALSA (no jack P2 de 3,5 mm do Pi 3B+
-é tipicamente `hw:0,0`, a placa "Headphones"). A buzina (botão 📯 ou tecla H,
+é a placa "Headphones"; no Raspberry Pi OS com HDMI ativo ela costuma ser
+o `card 1`, ou seja, o padrão `hw:1,0`). A buzina (botão 📯 ou tecla H,
 só para o motorista) é sintetizada em memória e tocada por um `aplay`. Música, efeitos e interfone
 compartilham o alto-falante: ao abrir o interfone, os outros players são
 suspensos para liberar o dispositivo.
