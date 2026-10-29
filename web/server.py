@@ -11,6 +11,7 @@ from aiohttp import web
 from config import BUMP_AUDIO_DIR, BUMP_AUDIO_ALSA_DEV
 from media.bump_audio import BumpAudioPlayer
 from media.live_voice import LiveVoicePlayer
+from media.horn import HornPlayer
 from media.music import MusicPlayer
 from web.broadcast import battery_broadcaster, bump_broadcaster, broadcast_music
 from web.control_thread import ControlThread
@@ -28,6 +29,9 @@ MUSIC_ALSA_DEV = os.environ.get("MUSIC_ALSA_DEV", "hw:1,0")
 MUSIC_AUTOPLAY = os.environ.get("MUSIC_AUTOPLAY", "0") == "1"
 VOICE_ALSA_DEV = os.environ.get(
     "VOICE_ALSA_DEV", MUSIC_ALSA_DEV.replace("hw:", "plughw:", 1)
+)
+HORN_ALSA_DEV = os.environ.get(
+    "HORN_ALSA_DEV", MUSIC_ALSA_DEV.replace("hw:", "plughw:", 1)
 )
 TLS_CERT = os.environ.get("ROOMBA_TLS_CERT")
 TLS_KEY = os.environ.get("ROOMBA_TLS_KEY")
@@ -85,6 +89,7 @@ async def on_startup(app: web.Application) -> None:
         autoplay=MUSIC_AUTOPLAY,
     )
     registry.player.start()
+    registry.horn = HornPlayer(HORN_ALSA_DEV)
 
 
 async def on_cleanup(app: web.Application) -> None:

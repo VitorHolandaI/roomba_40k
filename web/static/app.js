@@ -185,6 +185,15 @@
     pressed[dir] = true;
     keyboardDrive();
   });
+  // Buzina: botão do rodapé ou tecla H (sem repetir ao segurar).
+  var btnHorn = document.getElementById("btn-horn");
+  function honk() { send({ type: "horn" }); }
+  btnHorn.addEventListener("click", honk);
+  window.addEventListener("keydown", function (e) {
+    if (e.key.toLowerCase() !== "h" || e.repeat) return;
+    honk();
+  });
+
   window.addEventListener("keyup", function (e) {
     var dir = KEY_DIR[e.key];
     if (!dir) return;

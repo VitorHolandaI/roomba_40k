@@ -66,6 +66,8 @@ certificado com o novo IP.
 | `ROOMBA_PORT`       | `/dev/ttyUSB0`   | Porta serial do Create2         |
 | `ROOMBA_HTTP_PORT`  | `8080`           | Porta HTTP do servidor web      |
 | `VOICE_ALSA_DEV`    | `plughw:1,0`     | Saída ALSA do interfone          |
+| `HORN_ALSA_DEV`     | `MUSIC_ALSA_DEV` como `plughw` | Saída ALSA da buzina |
+| `ROOMBA_MAX_VOLUME` | `1`              | `run.sh` maximiza o volume ALSA; `0` desliga |
 | `ROOMBA_TLS_CERT`   | detecção local   | Certificado HTTPS opcional       |
 | `ROOMBA_TLS_KEY`    | detecção local   | Chave HTTPS opcional             |
 | `ROOMBA_CA_PORT`    | `8090`           | Link temporário para baixar a CA |

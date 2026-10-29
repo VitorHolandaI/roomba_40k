@@ -68,6 +68,35 @@ if ! command -v aplay >/dev/null; then
   echo "       Instale com: sudo apt install alsa-utils"
 fi
 
+# Deixa no máximo (e sem mute) todo controle de reprodução do cartão que o
+# mpg123/aplay usam. "hw:0,0", "plughw:0,0" e "hw:Headphones" viram o cartão.
+# Desligue com ROOMBA_MAX_VOLUME=0 (ex.: ao rodar no notebook).
+max_card_volume() {
+  local dev="${MUSIC_ALSA_DEV:-hw:1,0}" card ctl count=0
+  card="${dev#*:}"
+  card="${card%%,*}"
+  if ! command -v amixer >/dev/null; then
+    echo "[run] AVISO: 'amixer' ausente; volume do hardware não ajustado."
+    return 0
+  fi
+  while IFS= read -r ctl; do
+    amixer -c "$card" sget "$ctl" 2>/dev/null | grep -q pvolume || continue
+    if amixer -q -c "$card" sset "$ctl" 100% unmute 2>/dev/null; then
+      count=$((count + 1))
+    fi
+  done < <(amixer -c "$card" scontrols 2>/dev/null |
+    sed -n "s/^Simple mixer control '\(.*\)',[0-9]*$/\1/p")
+  if [ "$count" -eq 0 ]; then
+    echo "[run] AVISO: nenhum controle de volume em '$dev' (cartão '$card')."
+    return 0
+  fi
+  echo "[run] volume do hardware no máximo: $count controle(s) em '$dev'."
+}
+
+if [ "${ROOMBA_MAX_VOLUME:-1}" != "0" ]; then
+  max_card_volume
+fi
+
 echo "[run] iniciando stream e servidor..."
 
 STREAM_PID=""

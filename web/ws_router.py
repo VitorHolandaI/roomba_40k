@@ -1,5 +1,6 @@
 """WebSocket command router — translates JSON messages into SharedState updates."""
 
+import asyncio
 import json
 from typing import Awaitable, Callable, Optional, cast
 
@@ -94,6 +95,19 @@ async def _cmd_wake(
     state.request_wake()
 
 
+async def _cmd_horn(
+    _ws: web.WebSocketResponse,
+    registry: WebRegistry,
+    _state: SharedState,
+    _data: Payload,
+) -> None:
+    horn = registry.horn
+    if horn is None:
+        return
+    # Popen + write bloqueiam alguns ms no Pi; fora do event loop.
+    await asyncio.to_thread(horn.honk)
+
+
 async def _cmd_vel(
     _ws: web.WebSocketResponse,
     _registry: WebRegistry,
@@ -111,6 +125,7 @@ _COMMANDS: dict[str, _CommandHandler] = {
     "clean_motors": _cmd_clean,
     "vel": _cmd_vel,
     "wake": _cmd_wake,
+    "horn": _cmd_horn,
 }
 
 

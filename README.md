@@ -154,6 +154,8 @@ pode ser bloqueado pelo navegador.
 | `MUSIC_ALSA_DEV` | `hw:1,0` | Saída ALSA do `mpg123` |
 | `MUSIC_AUTOPLAY` | `0` | Use `1` para tocar ao iniciar |
 | `VOICE_ALSA_DEV` | `MUSIC_ALSA_DEV` como `plughw` | Saída ALSA do interfone |
+| `HORN_ALSA_DEV` | `MUSIC_ALSA_DEV` como `plughw` | Saída ALSA da buzina (botão 📯 ou tecla H) |
+| `ROOMBA_MAX_VOLUME` | `1` | `run.sh` deixa o volume do cartão de `MUSIC_ALSA_DEV` no máximo; use `0` para desligar |
 | `BUMP_AUDIO_DIR` | `~/roomba_sounds` | MP3s tocados após colisão |
 | `BUMP_AUDIO_ALSA_DEV` | `hw:1,0` | Saída ALSA dos efeitos |
 | `AP_SSID` | `Roomba40k` | Nome do ponto de acesso |
@@ -170,7 +172,9 @@ VOICE_ALSA_DEV=plughw:2,0 \
 ./run.sh
 ```
 
-Use `aplay -l` para listar dispositivos ALSA. Música, efeitos e interfone
+Use `aplay -l` para listar dispositivos ALSA (no jack P2 de 3,5 mm do Pi 3B+
+é tipicamente `hw:0,0`, a placa "Headphones"). A buzina (botão 📯 ou tecla H,
+só para o motorista) é sintetizada em memória e tocada por um `aplay`. Música, efeitos e interfone
 compartilham o alto-falante: ao abrir o interfone, os outros players são
 suspensos para liberar o dispositivo.
 
